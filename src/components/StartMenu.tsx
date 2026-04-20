@@ -1,40 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
-  Link,
-  Folder,
+  Clock,
+  Plus,
   Settings,
+  User,
+  Image,
+  Upload,
   Sun,
   Moon,
   Trash2,
-  Plus,
-  Globe,
-  Image,
-  Upload,
-  Layout,
-  FileVideo,
-  FolderPlus,
-  RefreshCw,
   LogOut,
-  User,
-  PenTool,
-  Clock,
-  Clipboard,
-} from 'lucide-react';
-import { useDesktopStore } from '../store/desktopStore';
-import { useTheme } from '../hooks/useTheme';
-import UserProfileModal from './UserProfileModal';
-import ResetAllDataModal from './ResetAllDataModal';
-import type { ShortcutItem, FolderItem } from '../types/desktop';
+  Globe,
+  Folder,
+  Terminal,
+  FileText,
+  Calculator,
+  SkipForward,
+} from 'lucide-react'
+import { useDesktopStore } from '../store/desktopStore'
+import { useTheme } from '../hooks/useTheme'
+import UserProfileModal from './UserProfileModal'
+import ResetAllDataModal from './ResetAllDataModal'
+import type { ShortcutItem, FolderItem, AppId } from '../types/desktop'
+import { APP_REGISTRY } from '../types/desktop'
 
 interface StartMenuProps {
-  onAddShortcut: (shortcut: { title: string; url: string; icon: string }) => void;
-  onAddFolder: (folder: { title: string; icon: string }) => void;
-  onWallpaperChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onWallpaperSelect: (url: string) => void;
-  onClearData?: () => void;
-  isOpen: boolean;
-  allItems?: (ShortcutItem | FolderItem)[];
-  onOpenItem?: (item: ShortcutItem | FolderItem) => void;
+  onAddShortcut: (shortcut: { title: string; url: string; icon: string }) => void
+  onAddFolder: (folder: { title: string; icon: string }) => void
+  onWallpaperChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onWallpaperSelect: (url: string) => void
+  onClearData?: () => void
+  isOpen: boolean
+  allItems?: (ShortcutItem | FolderItem)[]
+  onOpenItem?: (item: ShortcutItem | FolderItem) => void
+  onOpenApp?: (appId: AppId) => void
 }
 
 const predefinedWallpapers = [
@@ -42,7 +41,12 @@ const predefinedWallpapers = [
   'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1920&q=80',
   'https://images.unsplash.com/photo-1497436072909-60f360e1d4b1?auto=format&fit=crop&w=1920&q=80',
   'https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=1920&q=80',
-];
+]
+
+type TabId = 'apps' | 'frecuentes' | 'nuevo' | 'configuracion'
+type NewSection = 'acceso' | 'carpeta'
+
+const SYSTEM_APPS: AppId[] = ['finder', 'terminal', 'textedit', 'preferences', 'calculator']
 
 const StartMenu: React.FC<StartMenuProps> = ({
   onAddShortcut,
@@ -53,497 +57,464 @@ const StartMenu: React.FC<StartMenuProps> = ({
   isOpen,
   allItems = [],
   onOpenItem,
+  onOpenApp,
 }) => {
-  const { theme, setTheme } = useTheme();
-  const { userProfile, updateUserProfile, clearAllData } = useDesktopStore();
+  const { theme, setTheme } = useTheme()
+  const { userProfile, updateUserProfile, clearAllData, skipBoot, setSkipBoot } = useDesktopStore()
 
-  const [activeTab, setActiveTab] = useState<'frecuentes' | 'nuevo' | 'configuracion'>('frecuentes');
-  const [newSection, setNewSection] = useState<'acceso' | 'carpeta'>('acceso');
-  const [newShortcut, setNewShortcut] = useState({ title: '', url: '', icon: '' });
-  const [newFolder, setNewFolder] = useState({ title: '', icon: '' });
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showResetDataModal, setShowResetDataModal] = useState(false);
-  const [frequentItems, setFrequentItems] = useState<(ShortcutItem | FolderItem)[]>([]);
+  const [activeTab, setActiveTab] = useState<TabId>('apps')
+  const [newSection, setNewSection] = useState<NewSection>('acceso')
+  const [newShortcut, setNewShortcut] = useState({ title: '', url: '', icon: '' })
+  const [newFolder, setNewFolder] = useState({ title: '', icon: '' })
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showResetDataModal, setShowResetDataModal] = useState(false)
+  const [frequentItems, setFrequentItems] = useState<(ShortcutItem | FolderItem)[]>([])
 
   const getAllNestedItems = (
     items: (ShortcutItem | FolderItem)[]
   ): (ShortcutItem | FolderItem)[] => {
-    let allNestedItems: (ShortcutItem | FolderItem)[] = [];
-
+    let allNestedItems: (ShortcutItem | FolderItem)[] = []
     items.forEach((item) => {
-      allNestedItems.push(item);
+      allNestedItems.push(item)
       if ('items' in item && item.items) {
-        allNestedItems = [...allNestedItems, ...getAllNestedItems(item.items)];
+        allNestedItems = [...allNestedItems, ...getAllNestedItems(item.items)]
       }
-    });
+    })
+    return allNestedItems
+  }
 
-    return allNestedItems;
-  };
-
-  const updateFrequentItems = () => {
-    const allNestedItems = getAllNestedItems(allItems);
-
-    const itemsWithClickCount = allNestedItems.map((item) => ({
-      ...item,
-      clickCount: item.clickCount || 0,
-    }));
-
-    const sortedItems = itemsWithClickCount.sort((a, b) => b.clickCount - a.clickCount);
-
-    setFrequentItems(sortedItems.slice(0, 12));
-  };
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (allItems.length > 0) {
-      updateFrequentItems();
+      const allNestedItems = getAllNestedItems(allItems)
+      const itemsWithClickCount = allNestedItems.map((item) => ({
+        ...item,
+        clickCount: item.clickCount || 0,
+      }))
+      const sortedItems = itemsWithClickCount.sort((a, b) => b.clickCount - a.clickCount)
+      setFrequentItems(sortedItems.slice(0, 12))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allItems]);
+  }, [allItems])
 
   const handlePasteFromClipboard = async () => {
     try {
-      const clipboardText = await navigator.clipboard.readText();
-      setNewShortcut({ ...newShortcut, url: clipboardText });
+      const clipboardText = await navigator.clipboard.readText()
+      setNewShortcut({ ...newShortcut, url: clipboardText })
     } catch (err) {
-      console.error('Error al leer el contenido del portapapeles: ', err);
+      console.error('Error al leer el portapapeles: ', err)
     }
-  };
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   const handleClearData = () => {
-    setShowResetDataModal(true);
-  };
+    setShowResetDataModal(true)
+  }
 
   const executeDataReset = () => {
     if (onClearData) {
-      onClearData();
+      onClearData()
     } else {
-      clearAllData();
+      clearAllData()
     }
-    setShowResetDataModal(false);
-  };
+    setShowResetDataModal(false)
+  }
 
   const handleProfileUpdate = (profile: { name: string; avatar: string }) => {
-    updateUserProfile(profile);
-    setShowProfileModal(false);
-  };
+    updateUserProfile(profile)
+    setShowProfileModal(false)
+  }
 
   const handleItemClick = (item: ShortcutItem | FolderItem) => {
     if (onOpenItem) {
-      onOpenItem(item);
+      onOpenItem(item)
     }
-  };
+  }
+
+  const handleAppClick = (appId: AppId) => {
+    if (onOpenApp) {
+      onOpenApp(appId)
+    }
+  }
+
+  const renderApps = () => (
+    <div className="os-start-menu__content">
+      <h3 className="os-start-menu__section-title">
+        <Folder className="os-icon" />
+        Aplicaciones
+      </h3>
+      <div className="os-start-menu__grid">
+        {SYSTEM_APPS.map((appId) => {
+          const app = APP_REGISTRY[appId]
+          const IconComponent = {
+            terminal: Terminal,
+            'file-text': FileText,
+            settings: Settings,
+            calculator: Calculator,
+            folder: Folder,
+          }[app.icon] || Settings
+
+          return (
+            <button
+              key={appId}
+              className="os-start-menu__frequent-item"
+              onClick={() => handleAppClick(appId)}
+            >
+              <div className="os-start-menu__app-icon-wrapper">
+                <IconComponent className="os-start-menu__item-icon" />
+              </div>
+              <span className="os-start-menu__item-title">{app.name}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 
   const renderFrequentItems = () => {
     if (frequentItems.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-          <Clock className="w-12 h-12 mb-3" />
-          <p className="text-center">No hay elementos utilizados frecuentemente</p>
-          <p className="text-center text-sm">Los elementos más usados aparecerán aquí</p>
+        <div className="os-start-menu__empty">
+          <Clock className="os-icon" style={{ width: 32, height: 32 }} />
+          <p className="os-start-menu__empty-title">Sin elementos frecuentes</p>
+          <p className="os-start-menu__empty-subtitle">Los más usados aparecerán aquí</p>
         </div>
-      );
+      )
     }
 
     return (
-      <div className="grid grid-cols-4 gap-3">
-        {frequentItems.map((item, index) => (
+      <div className="os-start-menu__grid">
+        {frequentItems.map((item) => (
           <button
-            key={`${item.id}-${index}`}
+            key={item.id}
+            className="os-start-menu__frequent-item"
             onClick={() => handleItemClick(item)}
-            className="flex flex-col items-center justify-center p-3 rounded transition-colors bg-gray-800 hover:bg-gray-700 text-white"
           >
             {item.icon ? (
-              <img src={item.icon} alt={item.title} className="w-8 h-8 mb-2" />
+              <img src={item.icon} alt={item.title} className="os-start-menu__item-icon" />
             ) : 'items' in item ? (
-              <Folder className="w-8 h-8 mb-2" />
+              <Folder className="os-start-menu__item-icon os-icon--folder" />
             ) : (
-              <Globe className="w-8 h-8 mb-2" />
+              <Globe className="os-start-menu__item-icon" />
             )}
-            <span className="text-sm text-center truncate w-full">{item.title}</span>
-            <span className="text-xs text-gray-400">{item.clickCount || 0} usos</span>
+            <span className="os-start-menu__item-title">{item.title}</span>
+            <span className="os-start-menu__item-count">{item.clickCount || 0}</span>
           </button>
         ))}
       </div>
-    );
-  };
+    )
+  }
 
   const renderNewContent = () => {
-    switch (newSection) {
-      case 'acceso':
-        return (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              onAddShortcut(newShortcut);
-              setNewShortcut({ title: '', url: '', icon: '' });
-            }}
-            className="flex flex-col gap-3"
-          >
-            <div>
-              <label className="text-white text-sm mb-1 block">Título</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={newShortcut.title}
-                  onChange={(e) => setNewShortcut({ ...newShortcut, title: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white pl-9"
-                  placeholder="Google"
-                />
-                <div className="absolute left-2 top-2.5">
-                  <Layout className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
+    if (newSection === 'acceso') {
+      return (
+        <form
+          className="os-start-menu__form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            onAddShortcut(newShortcut)
+            setNewShortcut({ title: '', url: '', icon: '' })
+          }}
+        >
+          <div className="os-form-group">
+            <label className="os-form-label">Título</label>
+            <input
+              type="text"
+              className="os-input"
+              value={newShortcut.title}
+              onChange={(e) => setNewShortcut({ ...newShortcut, title: e.target.value })}
+              placeholder="Google"
+            />
+          </div>
+          <div className="os-form-group">
+            <label className="os-form-label">URL</label>
+            <div className="os-input-group">
+              <input
+                type="url"
+                className="os-input"
+                value={newShortcut.url}
+                onChange={(e) => setNewShortcut({ ...newShortcut, url: e.target.value })}
+                placeholder="https://google.com"
+              />
+              <button
+                type="button"
+                className="os-btn os-btn--secondary os-btn--sm"
+                onClick={handlePasteFromClipboard}
+              >
+                Pegar
+              </button>
             </div>
-            <div>
-              <label className="text-white text-sm mb-1 block">URL</label>
-              <div className="relative flex">
-                <div className="relative grow">
-                  <input
-                    type="url"
-                    value={newShortcut.url}
-                    onChange={(e) => setNewShortcut({ ...newShortcut, url: e.target.value })}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-l px-3 py-2 text-white pl-9"
-                    placeholder="https://google.com"
-                  />
-                  <div className="absolute left-2 top-2.5">
-                    <Link className="h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handlePasteFromClipboard}
-                  className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-r border-l-0 border border-gray-700 flex items-center justify-center"
-                  title="Pegar desde el portapapeles"
-                >
-                  <Clipboard className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="text-white text-sm mb-1 block">URL del Icono (opcional)</label>
-              <div className="relative">
-                <input
-                  type="url"
-                  value={newShortcut.icon}
-                  onChange={(e) => setNewShortcut({ ...newShortcut, icon: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white pl-9"
-                  placeholder="https://ejemplo.com/icono.png"
-                />
-                <div className="absolute left-2 top-2.5">
-                  <Image className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded mt-2 flex items-center justify-center"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Añadir Acceso Directo
-            </button>
-          </form>
-        );
-      case 'carpeta':
-        return (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              onAddFolder(newFolder);
-              setNewFolder({ title: '', icon: '' });
-            }}
-            className="flex flex-col gap-3"
-          >
-            <div>
-              <label className="text-white text-sm mb-1 block">Nombre de la Carpeta</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={newFolder.title}
-                  onChange={(e) => setNewFolder({ ...newFolder, title: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white pl-9"
-                  placeholder="Mi Carpeta"
-                />
-                <div className="absolute left-2 top-2.5">
-                  <Folder className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-            </div>
-            <div>
-              <label className="text-white text-sm mb-1 block">URL del Icono (opcional)</label>
-              <div className="relative">
-                <input
-                  type="url"
-                  value={newFolder.icon}
-                  onChange={(e) => setNewFolder({ ...newFolder, icon: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white pl-9"
-                  placeholder="https://ejemplo.com/icono-carpeta.png"
-                />
-                <div className="absolute left-2 top-2.5">
-                  <Image className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded mt-2 flex items-center justify-center"
-            >
-              <FolderPlus className="h-4 w-4 mr-2" />
-              Añadir Carpeta
-            </button>
-          </form>
-        );
-      default:
-        return null;
+          </div>
+          <div className="os-form-group">
+            <label className="os-form-label">URL del Icono (opcional)</label>
+            <input
+              type="url"
+              className="os-input"
+              value={newShortcut.icon}
+              onChange={(e) => setNewShortcut({ ...newShortcut, icon: e.target.value })}
+              placeholder="https://ejemplo.com/icono.png"
+            />
+          </div>
+          <button type="submit" className="os-btn os-btn--primary">
+            <Plus className="os-icon os-icon--sm" />
+            Añadir Acceso Directo
+          </button>
+        </form>
+      )
     }
-  };
+
+    return (
+      <form
+        className="os-start-menu__form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          onAddFolder(newFolder)
+          setNewFolder({ title: '', icon: '' })
+        }}
+      >
+        <div className="os-form-group">
+          <label className="os-form-label">Nombre de la Carpeta</label>
+          <input
+            type="text"
+            className="os-input"
+            value={newFolder.title}
+            onChange={(e) => setNewFolder({ ...newFolder, title: e.target.value })}
+            placeholder="Mi Carpeta"
+          />
+        </div>
+        <div className="os-form-group">
+          <label className="os-form-label">URL del Icono (opcional)</label>
+          <input
+            type="url"
+            className="os-input"
+            value={newFolder.icon}
+            onChange={(e) => setNewFolder({ ...newFolder, icon: e.target.value })}
+            placeholder="https://ejemplo.com/icono.png"
+          />
+        </div>
+        <button type="submit" className="os-btn os-btn--primary">
+          <Folder className="os-icon os-icon--sm" />
+          Añadir Carpeta
+        </button>
+      </form>
+    )
+  }
+
+  const renderConfigContent = () => (
+    <div className="os-start-menu__config">
+      <div className="os-start-menu__config-section">
+        <h4 className="os-start-menu__config-title">
+          <User className="os-icon os-icon--sm" />
+          Perfil de Usuario
+        </h4>
+        <div className="os-start-menu__user-card">
+          {userProfile.avatar ? (
+            <img src={userProfile.avatar} alt="Avatar" className="os-start-menu__avatar-img" />
+          ) : (
+            <div className="os-start-menu__avatar-placeholder">
+              <User className="os-icon" />
+            </div>
+          )}
+          <div className="os-start-menu__user-info">
+            <p className="os-start-menu__user-name">{userProfile.name}</p>
+            <p className="os-start-menu__user-role">Cuenta Local</p>
+          </div>
+          <button
+            className="os-btn os-btn--secondary os-btn--sm"
+            onClick={() => setShowProfileModal(true)}
+          >
+            Editar
+          </button>
+        </div>
+      </div>
+
+      <div className="os-start-menu__config-section">
+        <h4 className="os-start-menu__config-title">
+          <Sun className="os-icon os-icon--sm" />
+          Tema
+        </h4>
+        <div className="os-start-menu__theme-btns">
+          <button
+            className={`os-btn ${theme === 'light' ? 'os-btn--primary' : 'os-btn--secondary'}`}
+            onClick={() => setTheme('light')}
+          >
+            <Sun className="os-icon os-icon--sm" />
+            Claro
+          </button>
+          <button
+            className={`os-btn ${theme === 'dark' ? 'os-btn--primary' : 'os-btn--secondary'}`}
+            onClick={() => setTheme('dark')}
+          >
+            <Moon className="os-icon os-icon--sm" />
+            Oscuro
+          </button>
+        </div>
+      </div>
+
+      <div className="os-start-menu__config-section">
+        <h4 className="os-start-menu__config-title">
+          <Image className="os-icon os-icon--sm" />
+          Fondo de Pantalla
+        </h4>
+        <div className="os-start-menu__wallpapers">
+          {predefinedWallpapers.map((wp, index) => (
+            <button
+              key={index}
+              className="os-start-menu__wallpaper-btn"
+              onClick={() => onWallpaperSelect(wp)}
+            >
+              <img src={wp} alt={`Fondo ${index + 1}`} />
+            </button>
+          ))}
+        </div>
+        <label className="os-start-menu__upload-label">
+          <Upload className="os-icon os-icon--sm" />
+          <span>Subir Fondo Personalizado</span>
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onWallpaperChange}
+          />
+        </label>
+      </div>
+
+      <div className="os-start-menu__config-section">
+        <h4 className="os-start-menu__config-title">
+          <SkipForward className="os-icon os-icon--sm" />
+          Secuencia de Arranque
+        </h4>
+        <label className="os-start-menu__toggle">
+          <input
+            type="checkbox"
+            checked={skipBoot}
+            onChange={(e) => setSkipBoot(e.target.checked)}
+          />
+          <span>Omitir pantalla de inicio</span>
+        </label>
+      </div>
+
+      <div className="os-start-menu__config-section">
+        <button className="os-btn os-btn--danger" onClick={handleClearData}>
+          <Trash2 className="os-icon os-icon--sm" />
+          Reiniciar Todos los Datos
+        </button>
+      </div>
+    </div>
+  )
 
   const renderContent = () => {
     switch (activeTab) {
       case 'frecuentes':
         return (
-          <div className="p-4 flex-1 overflow-y-auto">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center">
-              <Clock className="mr-2 h-5 w-5" />
+          <div className="os-start-menu__content">
+            <h3 className="os-start-menu__section-title">
+              <Clock className="os-icon" />
               Elementos Frecuentes
-            </h2>
+            </h3>
             {renderFrequentItems()}
           </div>
-        );
+        )
+      case 'apps':
+        return renderApps()
       case 'nuevo':
         return (
-          <div className="p-4 flex-1 overflow-y-auto">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center">
-              <Plus className="mr-2 h-5 w-5" />
+          <div className="os-start-menu__content">
+            <h3 className="os-start-menu__section-title">
+              <Plus className="os-icon" />
               Nuevo
-            </h2>
-
-            <div className="grid grid-cols-4 gap-3 mb-4">
+            </h3>
+            <div className="os-tabs">
               <button
+                className={`os-tab ${newSection === 'acceso' ? 'os-tab--active' : ''}`}
                 onClick={() => setNewSection('acceso')}
-                className={`flex flex-col items-center justify-center p-3 rounded transition-colors ${
-                  newSection === 'acceso'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 hover:bg-gray-700 text-white'
-                }`}
               >
-                <Globe className="w-6 h-6 mb-2" />
-                <span className="text-sm">Acceso Directo</span>
+                <Globe className="os-icon os-icon--sm" />
+                Acceso Directo
               </button>
               <button
+                className={`os-tab ${newSection === 'carpeta' ? 'os-tab--active' : ''}`}
                 onClick={() => setNewSection('carpeta')}
-                className={`flex flex-col items-center justify-center p-3 rounded transition-colors ${
-                  newSection === 'carpeta'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 hover:bg-gray-700 text-white'
-                }`}
               >
-                <Folder className="w-6 h-6 mb-2" />
-                <span className="text-sm">Carpeta</span>
-              </button>
-              <button
-                className="flex flex-col items-center justify-center p-3 rounded transition-colors bg-gray-800 hover:bg-gray-700 text-white"
-                disabled
-              >
-                <Image className="w-6 h-6 mb-2" />
-                <span className="text-sm">Imágen</span>
-              </button>
-              <button
-                className="flex flex-col items-center justify-center p-3 rounded transition-colors bg-gray-800 hover:bg-gray-700 text-white"
-                disabled
-              >
-                <FileVideo className="w-6 h-6 mb-2" />
-                <span className="text-sm">Vídeo</span>
+                <Folder className="os-icon os-icon--sm" />
+                Carpeta
               </button>
             </div>
-
-            <div className="mt-4">{renderNewContent()}</div>
+            <div className="os-start-menu__form-wrapper">{renderNewContent()}</div>
           </div>
-        );
+        )
       case 'configuracion':
         return (
-          <div className="p-4 flex-1 overflow-y-auto grid grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-white font-medium mb-3 flex items-center text-sm">
-                <User className="w-4 h-4 mr-2" />
-                Perfil de Usuario
-              </h3>
-              <div className="flex items-center gap-3 mb-3 bg-gray-800 rounded-lg p-3">
-                <div className="relative">
-                  {userProfile.avatar ? (
-                    <img
-                      src={userProfile.avatar}
-                      alt="Avatar de Usuario"
-                      className="w-12 h-12 rounded-full object-cover border-2 border-blue-500"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-medium">{userProfile.name}</p>
-                  <p className="text-gray-400 text-xs">Cuenta Local</p>
-                </div>
-                <button
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-3 py-1.5 text-sm flex items-center"
-                  onClick={() => setShowProfileModal(true)}
-                >
-                  <PenTool className="w-3.5 h-3.5 mr-1.5" />
-                  Editar
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-white font-medium mb-3 flex items-center text-sm">
-                <Sun className="w-4 h-4 mr-2" />
-                Tema
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setTheme('light')}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded ${
-                    theme === 'light'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800 text-white hover:bg-gray-700'
-                  }`}
-                >
-                  <Sun className="w-4 h-4" />
-                  <span>Claro</span>
-                </button>
-                <button
-                  onClick={() => setTheme('dark')}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded ${
-                    theme === 'dark'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800 text-white hover:bg-gray-700'
-                  }`}
-                >
-                  <Moon className="w-4 h-4" />
-                  <span>Oscuro</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="col-span-2">
-              <h3 className="text-white font-medium mb-3 flex items-center text-sm">
-                <Image className="w-4 h-4 mr-2" />
-                Fondo de Pantalla
-              </h3>
-              <div className="grid grid-cols-4 gap-3 mb-3">
-                {predefinedWallpapers.map((wallpaper, index) => (
-                  <button
-                    key={index}
-                    onClick={() => onWallpaperSelect(wallpaper)}
-                    className="h-16 rounded overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
-                  >
-                    <img
-                      src={wallpaper}
-                      alt={`Fondo ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-              <label className="flex items-center gap-2 text-white cursor-pointer bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded w-full mt-2">
-                <Upload className="w-4 h-4" />
-                <span>Subir Fondo Personalizado</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={onWallpaperChange}
-                />
-              </label>
-            </div>
-
-            <div className="col-span-2">
-              <h3 className="text-white font-medium mb-3 flex items-center text-sm">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Gestión de Datos
-              </h3>
-              <button
-                onClick={handleClearData}
-                className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded w-full"
-              >
-                <Trash2 className="w-4 h-4" />
-                Reiniciar Todos los Datos
-              </button>
-            </div>
+          <div className="os-start-menu__content">
+            <h3 className="os-start-menu__section-title">
+              <Settings className="os-icon" />
+              Configuración
+            </h3>
+            {renderConfigContent()}
           </div>
-        );
+        )
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   return (
-    <div className="absolute bottom-12 left-2 w-2/3 max-w-4xl bg-gray-900 shadow-2xl rounded-t-lg overflow-hidden border border-gray-800 border-b-0">
-      <div className="flex items-center px-4 py-2 bg-gray-800 border-b border-gray-700">
-        <button
-          className="bg-blue-600 rounded-full p-1.5 mr-3 cursor-pointer hover:bg-blue-700"
-          onClick={() => setShowProfileModal(true)}
-        >
+    <>
+      <div className="os-start-menu">
+        <div className="os-start-menu__header">
           {userProfile.avatar ? (
-            <img
-              src={userProfile.avatar}
-              alt="Avatar de Usuario"
-              className="h-5 w-5 rounded-full object-cover"
-            />
+            <img src={userProfile.avatar} alt="Avatar" className="os-start-menu__avatar" />
           ) : (
-            <User className="h-5 w-5 text-white" />
+            <div className="os-start-menu__avatar">
+              <User className="os-icon" />
+            </div>
           )}
-        </button>
-        <div>
-          <p className="text-white font-medium">{userProfile.name}</p>
-          <p className="text-gray-400 text-xs">Cuenta Local</p>
-        </div>
-        <button className="ml-auto text-white hover:bg-gray-700 rounded-full p-1.5">
-          <LogOut className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="flex h-96">
-        <div className="w-16 bg-gray-800 border-r border-gray-700 flex flex-col items-center pt-4">
+          <div className="os-start-menu__user">
+            <p className="os-start-menu__user-name">{userProfile.name}</p>
+            <p className="os-start-menu__user-role">Cuenta Local</p>
+          </div>
           <button
-            onClick={() => setActiveTab('frecuentes')}
-            className={`p-2 mb-4 rounded-md w-12 h-12 flex flex-col items-center justify-center ${
-              activeTab === 'frecuentes' ? 'bg-blue-600' : 'hover:bg-gray-700'
-            }`}
-            title="Frecuentes"
+            className="os-start-menu__logout"
+            onClick={() => setShowProfileModal(true)}
+            aria-label="Cerrar sesión"
           >
-            <Clock className="h-5 w-5 text-white" />
-            <span className="text-white text-xs mt-1">Frecuentes</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('nuevo')}
-            className={`p-2 mb-4 rounded-md w-12 h-12 flex flex-col items-center justify-center ${
-              activeTab === 'nuevo' ? 'bg-blue-600' : 'hover:bg-gray-700'
-            }`}
-            title="Nuevo"
-          >
-            <Plus className="h-5 w-5 text-white" />
-            <span className="text-white text-xs mt-1">Nuevo</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('configuracion')}
-            className={`p-2 mb-4 rounded-md w-12 h-12 flex flex-col items-center justify-center ${
-              activeTab === 'configuracion' ? 'bg-blue-600' : 'hover:bg-gray-700'
-            }`}
-            title="Configuración"
-          >
-            <Settings className="h-5 w-5 text-white" />
-            <span className="text-white text-xs mt-1">Config</span>
+            <LogOut className="os-icon" />
           </button>
         </div>
 
-        {renderContent()}
+        <div className="os-start-menu__body">
+          <div className="os-start-menu__sidebar">
+            <button
+              className={`os-start-menu__sidebar-btn ${activeTab === 'apps' ? 'os-start-menu__sidebar-btn--active' : ''}`}
+              onClick={() => setActiveTab('apps')}
+            >
+              <Folder />
+              <span>Apps</span>
+            </button>
+            <button
+              className={`os-start-menu__sidebar-btn ${activeTab === 'frecuentes' ? 'os-start-menu__sidebar-btn--active' : ''}`}
+              onClick={() => setActiveTab('frecuentes')}
+            >
+              <Clock />
+              <span>Frecuentes</span>
+            </button>
+            <button
+              className={`os-start-menu__sidebar-btn ${activeTab === 'nuevo' ? 'os-start-menu__sidebar-btn--active' : ''}`}
+              onClick={() => setActiveTab('nuevo')}
+            >
+              <Plus />
+              <span>Nuevo</span>
+            </button>
+            <button
+              className={`os-start-menu__sidebar-btn ${activeTab === 'configuracion' ? 'os-start-menu__sidebar-btn--active' : ''}`}
+              onClick={() => setActiveTab('configuracion')}
+            >
+              <Settings />
+              <span>Config</span>
+            </button>
+          </div>
+
+          {renderContent()}
+        </div>
       </div>
 
       {showProfileModal && (
@@ -561,8 +532,8 @@ const StartMenu: React.FC<StartMenuProps> = ({
           onConfirmReset={executeDataReset}
         />
       )}
-    </div>
-  );
-};
+    </>
+  )
+}
 
-export default StartMenu;
+export default StartMenu

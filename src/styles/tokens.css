@@ -1,0 +1,105 @@
+/* =====================================================
+   tokens.css — macOS Glass UI Design System
+   Source of truth: SKILLS/UI/SKILL.md
+   ===================================================== */
+
+/* ── Surface Layers ───────────────────────────────── */
+
+:root {
+  /* L0: Wallpaper / fondo base — sin glass */
+
+  /* L1: Elementos sueltos del desktop (iconos) */
+  --glass-l1-bg:     rgba(255, 255, 255, 0.04);
+  --glass-l1-blur:   blur(8px);
+  --glass-l1-border: rgba(255, 255, 255, 0.08);
+
+  /* L2: Dock, menubar, paneles secundarios */
+  --glass-l2-bg:     rgba(255, 255, 255, 0.07);
+  --glass-l2-blur:   blur(20px) saturate(160%);
+  --glass-l2-border: rgba(255, 255, 255, 0.12);
+
+  /* L3: Ventanas, cards principales */
+  --glass-l3-bg:     rgba(255, 255, 255, 0.08);
+  --glass-l3-blur:   blur(24px) saturate(180%);
+  --glass-l3-border: rgba(255, 255, 255, 0.14);
+
+  /* L4: Modales, popovers, context menus */
+  --glass-l4-bg:     rgba(18, 16, 38, 0.94);
+  --glass-l4-blur:   blur(32px) saturate(200%);
+  --glass-l4-border: rgba(255, 255, 255, 0.16);
+
+  /* ── Inset highlight — borde superior luminoso ──── */
+  --glass-inset-sm:  inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --glass-inset-md:  inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  --glass-inset-lg:  inset 0 1px 0 rgba(255, 255, 255, 0.24);
+
+  /* ── Sombras ─────────────────────────────────────── */
+  --shadow-sm:   0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-md:   0 16px 48px rgba(0, 0, 0, 0.30);
+  --shadow-lg:   0 32px 80px rgba(0, 0, 0, 0.35);
+  --shadow-xl:   0 48px 120px rgba(0, 0, 0, 0.45);
+  --shadow-focus: 0 0 0 3px rgba(139, 92, 246, 0.30);
+
+  /* ── Border radius ───────────────────────────────── */
+  --radius-xs:   6px;   /* inputs, tags pequeños */
+  --radius-sm:   9px;   /* botones, inputs grandes */
+  --radius-md:   12px;  /* cards internas, tooltips */
+  --radius-lg:   14px;  /* ventanas, modales */
+  --radius-xl:   20px;  /* dock, pill buttons */
+  --radius-full: 9999px; /* badges, dots */
+
+  /* ── Paleta de acento ────────────────────────────── */
+  --accent-500:      #7c3aed;
+  --accent-600:      #6d28d9;
+  --accent-gradient: linear-gradient(135deg, #7c3aed, #4f46e5);
+
+  /* Semánticos */
+  --color-danger:  rgba(239, 68,  68,  0.85);
+  --color-warning: rgba(234, 179, 8,   0.85);
+  --color-success: rgba(34,  197, 94,  0.85);
+  --color-info:    rgba(59,  130, 246, 0.85);
+
+  /* Texto sobre glass */
+  --text-primary:   rgba(255, 255, 255, 0.90);
+  --text-secondary: rgba(255, 255, 255, 0.60);
+  --text-tertiary:  rgba(255, 255, 255, 0.35);
+  --text-disabled:  rgba(255, 255, 255, 0.20);
+
+  /* Traffic lights */
+  --dot-red:    #ff5f57;
+  --dot-yellow: #febc2e;
+  --dot-green:  #28c840;
+
+  /* ── Tipografía ──────────────────────────────────── */
+  --font-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+                 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --font-mono:   'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+
+  /* Escala */
+  --text-xs:   10px;
+  --text-sm:   12px;
+  --text-base: 13px;
+  --text-md:   15px;
+  --text-lg:   17px;
+  --text-xl:   22px;
+
+  /* ── Transiciones ────────────────────────────────── */
+  --ease-glass:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+
+  --duration-fast:   120ms;
+  --duration-normal: 200ms;
+  --duration-slow:   320ms;
+
+  /* ── Z-index system ───────────────────────────────── */
+  --z-desktop:       0;
+  --z-windows:       10;
+  --z-dock:          1000;
+  --z-menubar:       1001;
+  --z-context-menu:  9000;
+  --z-modal-overlay: 9500;
+  --z-modal:         9999;
+  --z-toast:         10000;
+  --z-tooltip:       10001;
+}

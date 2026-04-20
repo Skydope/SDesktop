@@ -1,154 +1,133 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FolderItem, ShortcutItem } from '../types/desktop';
-import { Folder, Link, MoreVertical, ExternalLink, Edit, Trash2, Settings } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react'
+import { FolderItem, ShortcutItem } from '../types/desktop'
+import { MoreVertical, ExternalLink, Edit, Trash2, Settings, Folder, Link } from 'lucide-react'
 
 interface Props {
-  item: ShortcutItem | FolderItem;
-  onClick: () => void;
-  onEdit?: (item: ShortcutItem | FolderItem) => void;
-  onDelete?: (id: string) => void;
-  onViewProperties?: (item: ShortcutItem | FolderItem) => void;
-  className?: string;
+  item: ShortcutItem | FolderItem
+  onClick: () => void
+  onEdit?: (item: ShortcutItem | FolderItem) => void
+  onDelete?: (id: string) => void
+  onViewProperties?: (item: ShortcutItem | FolderItem) => void
 }
 
-const DesktopItem: React.FC<Props> = ({ 
-  item, 
-  onClick, 
-  onEdit, 
-  onDelete, 
-  onViewProperties, 
-  className = '' 
+const DesktopItem: React.FC<Props> = ({
+  item,
+  onClick,
+  onEdit,
+  onDelete,
+  onViewProperties,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const isFolder = 'items' in item;
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const isFolder = 'items' in item
 
-  // Cerrar el menú cuando se hace click fuera de él
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        menuRef.current && 
+        menuRef.current &&
         !menuRef.current.contains(event.target as Node) &&
-        buttonRef.current && 
+        buttonRef.current &&
         !buttonRef.current.contains(event.target as Node)
       ) {
-        setIsMenuOpen(false);
+        setIsMenuOpen(false)
       }
-    };
+    }
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside)
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const handleMenuToggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Evitar que el click llegue al DesktopItem
-    setIsMenuOpen(prev => !prev);
-  };
+    e.stopPropagation()
+    setIsMenuOpen(prev => !prev)
+  }
 
   const handleAction = (action: 'open' | 'edit' | 'delete' | 'properties', e: React.MouseEvent) => {
-    e.stopPropagation(); // Evitar que se propague el click
-    setIsMenuOpen(false);
+    e.stopPropagation()
+    setIsMenuOpen(false)
 
     switch (action) {
       case 'open':
-        onClick();
-        break;
+        onClick()
+        break
       case 'edit':
-        onEdit?.(item);
-        break;
+        onEdit?.(item)
+        break
       case 'delete':
-        onDelete?.(item.id);
-        break;
+        onDelete?.(item.id)
+        break
       case 'properties':
-        onViewProperties?.(item);
-        break;
+        onViewProperties?.(item)
+        break
     }
-  };
+  }
 
   return (
-    <div
-      className={`inline-block relative w-[100px] mx-1 my-1 ${className}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div
-        className="flex flex-col items-center gap-1 p-2 rounded-lg cursor-pointer 
-                  hover:bg-white/20 active:scale-95 transition-all duration-200
-                  focus:outline-none focus:ring-2 focus:ring-blue-400"
-        onClick={onClick}
-        role="button"
-        tabIndex={0}
-      >
-        {isHovered && (
-          <button
-            ref={buttonRef}
-            className="absolute top-0 right-0 p-1 bg-black/40 hover:bg-black/60 rounded-full transition-all"
-            onClick={handleMenuToggle}
-            aria-label="Opciones"
-          >
-            <MoreVertical className="w-4 h-4 text-white" />
-          </button>
-        )}
+    <div className="os-desktop-item" onClick={onClick}>
+      {isMenuOpen && (
+        <button
+          ref={buttonRef}
+          className="os-desktop-item__menu-btn"
+          onClick={handleMenuToggle}
+          aria-label="Opciones"
+        >
+          <MoreVertical className="os-icon os-icon--xs" />
+        </button>
+      )}
 
-        <div className={`w-16 h-16 flex items-center justify-center rounded-lg ${
-          isHovered ? 'scale-105' : ''
-        }`}>
-          {item.icon ? (
-            <img src={item.icon} alt={item.title} className="w-12 h-12 object-contain" />
-          ) : isFolder ? (
-            <Folder className="w-12 h-12 text-yellow-400" />
-          ) : (
-            <Link className="w-12 h-12 text-blue-400" />
-          )}
-        </div>
-        <span className="text-sm text-white text-center px-1 rounded max-w-full truncate text-shadow">
-          {item.title}
-        </span>
+      <div className="os-desktop-item__icon">
+        {item.icon ? (
+          <img src={item.icon} alt={item.title} />
+        ) : isFolder ? (
+          <Folder className="os-icon" style={{ width: 40, height: 40 }} />
+        ) : (
+          <Link className="os-icon" style={{ width: 40, height: 40 }} />
+        )}
       </div>
 
-      {/* Menú contextual */}
+      <span className="os-desktop-item__label">{item.title}</span>
+
       {isMenuOpen && (
-        <div 
+        <div
           ref={menuRef}
-          className="absolute z-50 w-36 py-1 mt-1 bg-gray-800 border border-gray-700 rounded-md shadow-lg"
-          style={{ right: '-40px' }}
+          className="os-context-menu os-context-menu--sm"
+          style={{ top: '100%', left: '50%', transform: 'translateX(-50%)' }}
         >
-          <button 
+          <button
+            className="os-context-menu__item"
             onClick={(e) => handleAction('open', e)}
-            className="flex items-center w-full px-3 py-2 text-sm text-white hover:bg-gray-700"
           >
-            <ExternalLink className="w-4 h-4 mr-2" />
+            <ExternalLink className="os-icon os-icon--sm" />
             <span>Abrir</span>
           </button>
-          <button 
+          <button
+            className="os-context-menu__item"
             onClick={(e) => handleAction('edit', e)}
-            className="flex items-center w-full px-3 py-2 text-sm text-white hover:bg-gray-700"
           >
-            <Edit className="w-4 h-4 mr-2" />
+            <Edit className="os-icon os-icon--sm" />
             <span>Editar</span>
           </button>
-          <button 
+          <button
+            className="os-context-menu__item"
             onClick={(e) => handleAction('delete', e)}
-            className="flex items-center w-full px-3 py-2 text-sm text-white hover:bg-gray-700"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
+            <Trash2 className="os-icon os-icon--sm" />
             <span>Eliminar</span>
           </button>
-          <button 
+          <button
+            className="os-context-menu__item"
             onClick={(e) => handleAction('properties', e)}
-            className="flex items-center w-full px-3 py-2 text-sm text-white hover:bg-gray-700"
           >
-            <Settings className="w-4 h-4 mr-2" />
+            <Settings className="os-icon os-icon--sm" />
             <span>Propiedades</span>
           </button>
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default DesktopItem;
+export default DesktopItem

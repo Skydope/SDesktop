@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { Cat, X, Folder, Maximize, Minimize } from 'lucide-react';
-import { WindowState } from '../types/desktop';
+import React, { useEffect, useState } from 'react'
+import { X, Folder, Maximize2, Minimize2 } from 'lucide-react'
+import { WindowState } from '../types/desktop'
 
 interface TaskbarProps {
-  openWindows: WindowState[];
-  isStartMenuOpen: boolean;
-  onStartMenuClick: () => void;
-  onWindowClick: (window: WindowState) => void;
-  onWindowClose: (windowId: string) => void;
+  openWindows: WindowState[]
+  isStartMenuOpen: boolean
+  onStartMenuClick: () => void
+  onWindowClick: (window: WindowState) => void
+  onWindowClose: (windowId: string) => void
 }
 
 const Taskbar: React.FC<TaskbarProps> = ({
@@ -17,91 +17,90 @@ const Taskbar: React.FC<TaskbarProps> = ({
   onWindowClick,
   onWindowClose,
 }) => {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState(new Date())
 
   useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
-    });
-  };
+    })
+  }
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString([], {
       month: 'short',
       day: '2-digit',
-    });
-  };
-
-  const handleTaskbarItemClick = (window: WindowState) => {
-    onWindowClick(window);
-  };
+    })
+  }
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gray-900/80 backdrop-blur-md flex items-center px-2 gap-2">
+    <div className="os-taskbar">
       <button
         onClick={onStartMenuClick}
-        className={`p-2 rounded-lg transition-colors ${
-          isStartMenuOpen ? 'bg-white/20' : 'hover:bg-white/10'
-        }`}
+        className={`os-taskbar__start-btn ${isStartMenuOpen ? 'os-taskbar__start-btn--active' : ''}`}
+        aria-label="Menú de inicio"
       >
-        <Cat className="w-10 h-6 text-white hover:text-red-500 hover:fill-yellow-500 transition-colors duration-200" />
+        <svg
+          width="22"
+          height="14"
+          viewBox="0 0 22 14"
+          fill="currentColor"
+        >
+          <rect x="0" y="0" width="22" height="3" rx="1" />
+          <rect x="0" y="5.5" width="22" height="3" rx="1" />
+          <rect x="0" y="11" width="22" height="3" rx="1" />
+        </svg>
       </button>
 
-      <div className="h-full w-px bg-white/20" />
+      <div className="os-taskbar__divider" />
 
-      <div className="flex-1 flex items-center gap-1 overflow-x-auto">
-        {openWindows.map((window) => (
-          <div
-            key={window.id}
-            onClick={() => handleTaskbarItemClick(window)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${
-              window.isActive && !window.isMinimized ? 'bg-white/20' : 'hover:bg-white/10'
-            }`}
-            title={window.isMinimized ? 'Restaurar' : 'Minimizar'}
+      <div className="os-taskbar__windows">
+        {openWindows.map((win) => (
+          <button
+            key={win.id}
+            className={`os-taskbar__window ${win.isActive && !win.isMinimized ? 'os-taskbar__window--active' : ''}`}
+            onClick={() => onWindowClick(win)}
+            title={win.isMinimized ? 'Restaurar' : 'Minimizar'}
           >
-            {window.icon ? (
-              <img
-                src={window.icon}
-                alt={window.title}
-                className="w-5 h-5 object-contain"
-              />
+            {win.icon ? (
+              <img src={win.icon} alt="" className="os-taskbar__window-icon" />
             ) : (
-              <Folder className="w-5 h-5 text-white" />
+              <Folder className="os-taskbar__window-icon" />
             )}
 
-            <span className="text-white text-sm">{window.title}</span>
+            <span className="os-taskbar__window-title">{win.title}</span>
 
-            {window.isMinimized ? (
-              <Maximize className="w-3 h-3 text-gray-400" />
+            {win.isMinimized ? (
+              <Maximize2 className="os-icon os-icon--xs" />
             ) : (
-              <Minimize className="w-3 h-3 text-gray-400" />
+              <Minimize2 className="os-icon os-icon--xs" />
             )}
 
             <button
               onClick={(e) => {
-                e.stopPropagation();
-                onWindowClose(window.id);
+                e.stopPropagation()
+                onWindowClose(win.id)
               }}
-              className="p-1 rounded-full hover:bg-white/20"
+              className="os-taskbar__window-close"
+              aria-label="Cerrar"
             >
-              <X className="w-4 h-4 text-white" />
+              <X className="os-icon os-icon--xs" />
             </button>
-          </div>
+          </button>
         ))}
       </div>
 
-      <div className="flex flex-col items-end text-white text-xs ml-auto px-2 select-none">
+      <div className="os-taskbar__clock">
         <span>{formatTime(time)}</span>
         <span>{formatDate(time)}</span>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Taskbar;
+export default Taskbar

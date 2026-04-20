@@ -1,178 +1,110 @@
-import React, { useState } from 'react';
-import {
-  X,
-  Calendar,
-  FileIcon,
-  Folder,
-  Link2,
-  User,
-  Clock,
-  FileCheck,
-  MousePointer,
-} from 'lucide-react';
-import { ShortcutItem, FolderItem } from '../types/desktop';
+import React from 'react'
+import { X, Calendar, FileIcon, Folder, Link2, User, Clock, FileCheck, MousePointer } from 'lucide-react'
+import { ShortcutItem, FolderItem } from '../types/desktop'
 
 interface PropertiesModalProps {
-  item: ShortcutItem | FolderItem | null;
-  onClose: () => void;
+  item: ShortcutItem | FolderItem | null
+  onClose: () => void
 }
 
-const PropertiesModal: React.FC<PropertiesModalProps> = ({
-  item,
-  onClose,
-}) => {
-  const [position, setPosition] = useState({ x: 100, y: 100 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+const PropertiesModal: React.FC<PropertiesModalProps> = ({ item, onClose }) => {
+  if (!item) return null
 
-  if (!item) return null;
+  const isShortcut = 'url' in item
+  const createdDate = new Date().toLocaleDateString()
 
-  const isShortcut = 'url' in item;
-  const createdDate = new Date().toLocaleDateString();
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragOffset({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragOffset.x,
-        y: e.clientY - dragOffset.y
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-  
   const getFolderStats = (folder: FolderItem) => {
-    const countItems = folder.items.length;
-    const countFolders = folder.items.filter(item => 'items' in item).length;
-    const countShortcuts = countItems - countFolders;
-    
-    return { countItems, countFolders, countShortcuts };
-  };
-  
-  const folderStats = !isShortcut ? getFolderStats(item as FolderItem) : null;
+    const countItems = folder.items.length
+    const countFolders = folder.items.filter(item => 'items' in item).length
+    const countShortcuts = countItems - countFolders
+    return { countItems, countFolders, countShortcuts }
+  }
+
+  const folderStats = !isShortcut ? getFolderStats(item as FolderItem) : null
 
   return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-gray-900 rounded-lg shadow-xl overflow-hidden w-96"
-        style={{
-          position: 'absolute',
-          left: position.x,
-          top: position.y
-        }}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="bg-gray-800 px-4 py-2 flex items-center justify-between cursor-move"
-          onMouseDown={handleMouseDown}
-        >
-          <h3 className="text-white font-medium">Propiedades: {item.title}</h3>
-          <button onClick={onClose} className="text-white hover:bg-gray-700 rounded p-1">
-            <X size={16} />
+    <div className="os-modal-overlay" onClick={onClose}>
+      <div className="os-modal os-modal--sm" onClick={(e) => e.stopPropagation()}>
+        <div className="os-modal__header">
+          <h3 className="os-modal__title">Propiedades: {item.title}</h3>
+          <button className="os-btn os-btn--icon" onClick={onClose}>
+            <X className="os-icon" />
           </button>
         </div>
 
-        <div className="p-6">
-          <div className="flex items-center mb-6">
-            <div className="w-16 h-16 mr-4 bg-gray-800 rounded-lg flex items-center justify-center">
+        <div className="os-properties-modal__content">
+          <div className="os-properties-modal__icon-row">
+            <div className="os-properties-modal__icon-box">
               {item.icon ? (
-                <img src={item.icon} alt={item.title} className="max-w-full max-h-full object-contain" />
+                <img src={item.icon} alt={item.title} />
               ) : (
-                <Folder className="w-10 h-10 text-gray-400" />
+                <Folder className="os-icon" />
               )}
             </div>
-            <div>
-              <h4 className="text-white font-medium">{item.title}</h4>
-              <p className="text-gray-400 text-sm">{isShortcut ? 'Acceso directo' : 'Carpeta'}</p>
+            <div className="os-properties-modal__info">
+              <h4>{item.title}</h4>
+              <p>{isShortcut ? 'Acceso directo' : 'Carpeta'}</p>
             </div>
           </div>
-          
-          <div className="space-y-4">
-            <div className="text-gray-300 space-y-2">
-              <div className="flex items-center">
-                <FileIcon className="w-4 h-4 mr-3 text-gray-400" />
-                <span className="text-gray-400 mr-2">Tipo:</span>
-                <span>{isShortcut ? 'Acceso directo' : 'Carpeta'}</span>
+
+          <div className="os-properties-modal__details">
+            <div className="os-properties-modal__row">
+              <FileIcon className="os-icon os-icon--sm" />
+              <span>Tipo:</span>
+              <span>{isShortcut ? 'Acceso directo' : 'Carpeta'}</span>
+            </div>
+            <div className="os-properties-modal__row">
+              <Calendar className="os-icon os-icon--sm" />
+              <span>Creado:</span>
+              <span>{createdDate}</span>
+            </div>
+            <div className="os-properties-modal__row">
+              <Clock className="os-icon os-icon--sm" />
+              <span>Modificado:</span>
+              <span>{new Date().toLocaleDateString()}</span>
+            </div>
+            <div className="os-properties-modal__row">
+              <MousePointer className="os-icon os-icon--sm" />
+              <span>Veces usado:</span>
+              <span>{item.clickCount || 0}</span>
+            </div>
+
+            {isShortcut && (
+              <div className="os-properties-modal__row os-properties-modal__row--url">
+                <Link2 className="os-icon os-icon--sm" />
+                <span>URL:</span>
+                <span className="os-properties-modal__url">{(item as ShortcutItem).url}</span>
               </div>
-              
-              <div className="flex items-center">
-                <Calendar className="w-4 h-4 mr-3 text-gray-400" />
-                <span className="text-gray-400 mr-2">Creado:</span>
-                <span>{createdDate}</span>
-              </div>
-              
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 mr-3 text-gray-400" />
-                <span className="text-gray-400 mr-2">Modificado:</span>
-                <span>{new Date().toLocaleDateString()}</span>
-              </div>
-              
-              {/* Nuevo bloque para mostrar el contador de clics */}
-              <div className="flex items-center">
-                <MousePointer className="w-4 h-4 mr-3 text-gray-400" />
-                <span className="text-gray-400 mr-2">Veces usado:</span>
-                <span>{item.clickCount || 0}</span>
-              </div>
-              
-              {isShortcut && (
-                <div className="flex items-start">
-                  <Link2 className="w-4 h-4 mr-3 mt-1 text-gray-400" />
-                  <span className="text-gray-400 mr-2">URL:</span>
-                  <span className="text-blue-400 break-all">{(item as ShortcutItem).url}</span>
+            )}
+
+            {!isShortcut && folderStats && (
+              <>
+                <div className="os-properties-modal__row">
+                  <FileCheck className="os-icon os-icon--sm" />
+                  <span>Contenido:</span>
+                  <span>{folderStats.countItems} elementos</span>
                 </div>
-              )}
-              
-              {!isShortcut && folderStats && (
-                <>
-                  <div className="flex items-center">
-                    <FileCheck className="w-4 h-4 mr-3 text-gray-400" />
-                    <span className="text-gray-400 mr-2">Contenido:</span>
-                    <span>{folderStats.countItems} elementos</span>
-                  </div>
-                  
-                  <div className="pl-7">
-                    <div>{folderStats.countFolders} carpetas</div>
-                    <div>{folderStats.countShortcuts} accesos directos</div>
-                  </div>
-                </>
-              )}
-              
-              <div className="flex items-center">
-                <User className="w-4 h-4 mr-3 text-gray-400" />
-                <span className="text-gray-400 mr-2">ID:</span>
-                <span className="text-xs">{item.id}</span>
-              </div>
+                <div className="os-properties-modal__row os-properties-modal__row--nested">
+                  <span>{folderStats.countFolders} carpetas</span>
+                  <span>{folderStats.countShortcuts} accesos directos</span>
+                </div>
+              </>
+            )}
+
+            <div className="os-properties-modal__row os-properties-modal__row--id">
+              <User className="os-icon os-icon--sm" />
+              <span>ID:</span>
+              <span>{item.id}</span>
             </div>
           </div>
-          
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-blue-600 rounded text-white hover:bg-blue-700"
-            >
-              Aceptar
-            </button>
-          </div>
+        </div>
+
+        <div className="os-modal__actions">
+          <button className="os-btn os-btn--primary" onClick={onClose}>Aceptar</button>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PropertiesModal;
+export default PropertiesModal

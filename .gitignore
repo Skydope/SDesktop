@@ -1,24 +1,66 @@
-# Logs
-logs
-*.log
+# Dependencias
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Archivos de construcción
+dist/
+build/
+out/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Archivos de sistema
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+#Archivos de notación local
+notes/
+
+# Archivos de configuración local
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+
+# Cache
+.npm
+.eslintcache
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Archivos de editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos de Electron
+dist_electron/
+
+# Certificados y claves
+*.p12
+*.key
+*.pem
+
+# Coverage
+coverage/
+
+# SDD y Skills locales
+SKILLS/
+sdd/
+
+# Features
+features/

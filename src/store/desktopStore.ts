@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ShortcutItem, FolderItem, WindowState } from '../types/desktop';
+import { APP_REGISTRY } from '../types/desktop';
 
 const defaultWallpaper = 'https://images.unsplash.com/photo-1477346611705-65d1883cee1e?auto=format&fit=crop&w=1920&q=80';
 
@@ -16,6 +17,7 @@ interface DesktopState {
   openWindows: WindowState[];
   isStartMenuOpen: boolean;
   userProfile: UserProfile;
+  skipBoot: boolean;
 }
 
 interface DesktopActions {
@@ -26,6 +28,7 @@ interface DesktopActions {
   updateItem: (id: string, updatedItem: ShortcutItem | FolderItem, parentId?: string) => void;
   deleteItem: (id: string, parentId?: string) => void;
   openWindow: (window: Omit<WindowState, 'isActive'>) => void;
+  openApp: (appId: string) => void;
   closeWindow: (id: string) => void;
   minimizeWindow: (id: string) => void;
   maximizeWindow: (id: string) => void;
@@ -35,6 +38,7 @@ interface DesktopActions {
   clearAllData: () => void;
   findFolderById: (id: string) => FolderItem | null;
   getAllItems: () => (ShortcutItem | FolderItem)[];
+  setSkipBoot: (skip: boolean) => void;
 }
 
 type DesktopStore = DesktopState & DesktopActions;
@@ -49,6 +53,7 @@ const initialState: DesktopState = {
     name: 'User',
     avatar: '',
   },
+  skipBoot: false,
 };
 
 // Helper: Find a folder recursively by ID
@@ -158,9 +163,21 @@ export const useDesktopStore = create<DesktopStore>()(
         })),
 
       addItemToFolder: (folderId, newItem) =>
-        set((state) => ({
-          items: addItemToFolderRecursive(state.items, folderId, newItem),
-        })),
+        set((state) => {
+          const newItems = addItemToFolderRecursive(state.items, folderId, newItem)
+          const newWindows = state.openWindows.map((w) => {
+            if (w.id === folderId && w.type === 'folder') {
+              const updatedFolder = findFolderByIdRecursive(newItems, folderId)
+              if (updatedFolder) return { ...w, content: updatedFolder }
+            }
+            if (w.type === 'folder') {
+              const updatedFolder = findFolderByIdRecursive(newItems, w.id)
+              if (updatedFolder) return { ...w, content: updatedFolder }
+            }
+            return w
+          })
+          return { items: newItems, openWindows: newWindows }
+        }),
 
       updateItem: (id, updatedItem, parentId) =>
         set((state) => {
@@ -223,6 +240,29 @@ export const useDesktopStore = create<DesktopStore>()(
           ],
         })),
 
+      openApp: (appId) => {
+        const app = APP_REGISTRY[appId as keyof typeof APP_REGISTRY];
+        if (!app) return;
+        const windowId = `${appId}-${Date.now()}`;
+        const offset = get().openWindows.length * 24;
+        set((state) => ({
+          openWindows: [
+            ...state.openWindows.map((w) => ({ ...w, isActive: false })),
+            {
+              id: windowId,
+              title: app.name,
+              icon: app.icon,
+              type: 'app',
+              appId,
+              content: { id: windowId, title: app.name, icon: app.icon, items: [], clickCount: 0 },
+              isMinimized: false,
+              isMaximized: false,
+              isActive: true,
+            },
+          ],
+        }));
+      },
+
       closeWindow: (id) =>
         set((state) => ({
           openWindows: state.openWindows.filter((w) => w.id !== id),
@@ -238,7 +278,7 @@ export const useDesktopStore = create<DesktopStore>()(
       maximizeWindow: (id) =>
         set((state) => ({
           openWindows: state.openWindows.map((w) =>
-            w.id === id ? { ...w, isMinimized: false } : w
+            w.id === id ? { ...w, isMaximized: !w.isMaximized, isMinimized: false } : w
           ),
         })),
 
@@ -260,6 +300,8 @@ export const useDesktopStore = create<DesktopStore>()(
       findFolderById: (id) => findFolderByIdRecursive(get().items, id),
 
       getAllItems: () => getAllItemsRecursive(get().items),
+
+      setSkipBoot: (skip: boolean) => set({ skipBoot: skip }),
     }),
     {
       name: 'desktopState',
@@ -268,6 +310,7 @@ export const useDesktopStore = create<DesktopStore>()(
         theme: state.theme,
         items: state.items,
         userProfile: state.userProfile,
+        skipBoot: state.skipBoot,
       }),
     }
   )
