@@ -724,11 +724,11 @@
 /* ── Start Menu ─────────────────────────────────────── */
 
 .os-start-menu {
-  position: absolute;
-  bottom: 60px;
-  left: 12px;
-  width: 580px;
-  max-width: calc(100vw - 24px);
+  position: fixed;
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 95vw);
   background: var(--glass-l3-bg);
   backdrop-filter: var(--glass-l3-blur);
   -webkit-backdrop-filter: var(--glass-l3-blur);
