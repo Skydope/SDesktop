@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { X, Calendar, FileIcon, Folder, Link2, User, Clock, FileCheck, MousePointer } from 'lucide-react';
+import {
+  X,
+  Calendar,
+  FileIcon,
+  Folder,
+  Link2,
+  User,
+  Clock,
+  FileCheck,
+  MousePointer,
+} from 'lucide-react';
 import { ShortcutItem, FolderItem } from '../types/desktop';
 
 interface PropertiesModalProps {
@@ -7,15 +17,18 @@ interface PropertiesModalProps {
   onClose: () => void;
 }
 
-const PropertiesModal: React.FC<PropertiesModalProps> = ({ item, onClose }) => {
-  if (!item) return null;
-  
-  const isShortcut = 'url' in item;
-  const createdDate = new Date().toLocaleDateString();
-  
+const PropertiesModal: React.FC<PropertiesModalProps> = ({
+  item,
+  onClose,
+}) => {
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  if (!item) return null;
+
+  const isShortcut = 'url' in item;
+  const createdDate = new Date().toLocaleDateString();
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);

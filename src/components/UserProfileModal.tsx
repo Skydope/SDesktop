@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { User, X, Upload, Camera, Trash2, Image, Settings } from 'lucide-react';
+import { User, X, Upload, Camera, Trash2, Image } from 'lucide-react';
 
 interface UserProfileModalProps {
   onClose: () => void;
@@ -77,10 +77,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleSave = () => {
     onSave({ name, avatar });
-  };
-
-  const handleWallpaperBrowseClick = () => {
-    wallpaperInputRef.current?.click();
   };
 
   const renderProfileContent = () => {

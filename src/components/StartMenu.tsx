@@ -1,50 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Link, 
-  Folder, 
-  Settings, 
-  Sun, 
-  Moon, 
-  Trash2, 
-  Plus, 
-  Globe, 
-  Image, 
-  Upload, 
-  Layout, 
+import {
+  Link,
+  Folder,
+  Settings,
+  Sun,
+  Moon,
+  Trash2,
+  Plus,
+  Globe,
+  Image,
+  Upload,
+  Layout,
   FileVideo,
-  FolderPlus, 
-  RefreshCw, 
-  LogOut, 
+  FolderPlus,
+  RefreshCw,
+  LogOut,
   User,
   PenTool,
   Clock,
-  Clipboard // Icono Clipboard añadido
+  Clipboard,
 } from 'lucide-react';
+import { useDesktopStore } from '../store/desktopStore';
+import { useTheme } from '../hooks/useTheme';
 import UserProfileModal from './UserProfileModal';
 import ResetAllDataModal from './ResetAllDataModal';
-import { ShortcutItem, FolderItem } from './desktop';
+import type { ShortcutItem, FolderItem } from '../types/desktop';
 
 interface StartMenuProps {
   onAddShortcut: (shortcut: { title: string; url: string; icon: string }) => void;
   onAddFolder: (folder: { title: string; icon: string }) => void;
   onWallpaperChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onWallpaperSelect: (url: string) => void;
-  onThemeChange: (theme: 'light' | 'dark') => void;
   onClearData?: () => void;
-  currentTheme: 'light' | 'dark';
   isOpen: boolean;
-  userName?: string;
-  userAvatar?: string;
-  onUpdateProfile?: (profile: { name: string; avatar: string }) => void;
-  allItems?: (ShortcutItem | FolderItem)[]; // Para acceder a todos los elementos
-  onOpenItem?: (item: ShortcutItem | FolderItem) => void; // Para abrir los elementos al hacer clic
+  allItems?: (ShortcutItem | FolderItem)[];
+  onOpenItem?: (item: ShortcutItem | FolderItem) => void;
 }
 
 const predefinedWallpapers = [
   'https://images.unsplash.com/photo-1477346611705-65d1883cee1e?auto=format&fit=crop&w=1920&q=80',
   'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1920&q=80',
   'https://images.unsplash.com/photo-1497436072909-60f360e1d4b1?auto=format&fit=crop&w=1920&q=80',
-  'https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=1920&q=80'
+  'https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=1920&q=80',
 ];
 
 const StartMenu: React.FC<StartMenuProps> = ({
@@ -52,73 +49,64 @@ const StartMenu: React.FC<StartMenuProps> = ({
   onAddFolder,
   onWallpaperChange,
   onWallpaperSelect,
-  onThemeChange,
   onClearData,
-  currentTheme,
   isOpen,
-  userName = "Usuario",
-  userAvatar,
-  onUpdateProfile,
   allItems = [],
-  onOpenItem
+  onOpenItem,
 }) => {
-  // Cambiado para incluir 'frecuentes' como opción de pestaña principal
+  const { theme, setTheme } = useTheme();
+  const { userProfile, updateUserProfile, clearAllData } = useDesktopStore();
+
   const [activeTab, setActiveTab] = useState<'frecuentes' | 'nuevo' | 'configuracion'>('frecuentes');
   const [newSection, setNewSection] = useState<'acceso' | 'carpeta'>('acceso');
   const [newShortcut, setNewShortcut] = useState({ title: '', url: '', icon: '' });
   const [newFolder, setNewFolder] = useState({ title: '', icon: '' });
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showResetDataModal, setShowResetDataModal] = useState(false);
   const [frequentItems, setFrequentItems] = useState<(ShortcutItem | FolderItem)[]>([]);
 
-  // Función mejorada para obtener todos los elementos anidados recursivamente
-  const getAllNestedItems = (items: (ShortcutItem | FolderItem)[]): (ShortcutItem | FolderItem)[] => {
+  const getAllNestedItems = (
+    items: (ShortcutItem | FolderItem)[]
+  ): (ShortcutItem | FolderItem)[] => {
     let allNestedItems: (ShortcutItem | FolderItem)[] = [];
-    
-    items.forEach(item => {
+
+    items.forEach((item) => {
       allNestedItems.push(item);
       if ('items' in item && item.items) {
         allNestedItems = [...allNestedItems, ...getAllNestedItems(item.items)];
       }
     });
-    
+
     return allNestedItems;
   };
 
-  // Actualizar los elementos frecuentes cada vez que cambia allItems
+  const updateFrequentItems = () => {
+    const allNestedItems = getAllNestedItems(allItems);
+
+    const itemsWithClickCount = allNestedItems.map((item) => ({
+      ...item,
+      clickCount: item.clickCount || 0,
+    }));
+
+    const sortedItems = itemsWithClickCount.sort((a, b) => b.clickCount - a.clickCount);
+
+    setFrequentItems(sortedItems.slice(0, 12));
+  };
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (allItems.length > 0) {
       updateFrequentItems();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems]);
 
-  // Función mejorada para actualizar los elementos frecuentes
-  const updateFrequentItems = () => {
-    // Obtener todos los elementos, incluyendo los anidados
-    const allNestedItems = getAllNestedItems(allItems);
-    
-    // Asegurar que todos los elementos tengan un clickCount definido
-    const itemsWithClickCount = allNestedItems.map(item => ({
-      ...item,
-      clickCount: item.clickCount || 0
-    }));
-    
-    // Ordenar por número de clics (de mayor a menor)
-    const sortedItems = itemsWithClickCount.sort((a, b) => b.clickCount - a.clickCount);
-    
-    // Tomar los primeros 12 o menos si no hay suficientes
-    setFrequentItems(sortedItems.slice(0, 12));
-  };
-
-  // Nueva función para manejar pegar desde el portapapeles
   const handlePasteFromClipboard = async () => {
     try {
       const clipboardText = await navigator.clipboard.readText();
       setNewShortcut({ ...newShortcut, url: clipboardText });
     } catch (err) {
       console.error('Error al leer el contenido del portapapeles: ', err);
-      // Podrías añadir una notificación toast aquí si tienes un sistema de notificaciones
     }
   };
 
@@ -127,34 +115,18 @@ const StartMenu: React.FC<StartMenuProps> = ({
   const handleClearData = () => {
     setShowResetDataModal(true);
   };
-  
+
   const executeDataReset = () => {
     if (onClearData) {
       onClearData();
     } else {
-      const keysToDelete = [
-        'shortcuts', 
-        'folders', 
-        'wallpaper', 
-        'theme',
-        'desktopState',
-        'userName',
-        'userAvatar'
-      ];
-      
-      keysToDelete.forEach(key => {
-        localStorage.removeItem(key);
-      });
-      
-      window.location.reload();
+      clearAllData();
     }
     setShowResetDataModal(false);
   };
 
   const handleProfileUpdate = (profile: { name: string; avatar: string }) => {
-    if (onUpdateProfile) {
-      onUpdateProfile(profile);
-    }
+    updateUserProfile(profile);
     setShowProfileModal(false);
   };
 
@@ -228,7 +200,7 @@ const StartMenu: React.FC<StartMenuProps> = ({
             <div>
               <label className="text-white text-sm mb-1 block">URL</label>
               <div className="relative flex">
-                <div className="relative flex-grow">
+                <div className="relative grow">
                   <input
                     type="url"
                     value={newShortcut.url}
@@ -347,13 +319,13 @@ const StartMenu: React.FC<StartMenuProps> = ({
               <Plus className="mr-2 h-5 w-5" />
               Nuevo
             </h2>
-            
+
             <div className="grid grid-cols-4 gap-3 mb-4">
               <button
                 onClick={() => setNewSection('acceso')}
                 className={`flex flex-col items-center justify-center p-3 rounded transition-colors ${
-                  newSection === 'acceso' 
-                    ? 'bg-blue-600 text-white' 
+                  newSection === 'acceso'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-gray-800 hover:bg-gray-700 text-white'
                 }`}
               >
@@ -363,8 +335,8 @@ const StartMenu: React.FC<StartMenuProps> = ({
               <button
                 onClick={() => setNewSection('carpeta')}
                 className={`flex flex-col items-center justify-center p-3 rounded transition-colors ${
-                  newSection === 'carpeta' 
-                    ? 'bg-blue-600 text-white' 
+                  newSection === 'carpeta'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-gray-800 hover:bg-gray-700 text-white'
                 }`}
               >
@@ -386,10 +358,8 @@ const StartMenu: React.FC<StartMenuProps> = ({
                 <span className="text-sm">Vídeo</span>
               </button>
             </div>
-            
-            <div className="mt-4">
-              {renderNewContent()}
-            </div>
+
+            <div className="mt-4">{renderNewContent()}</div>
           </div>
         );
       case 'configuracion':
@@ -402,9 +372,9 @@ const StartMenu: React.FC<StartMenuProps> = ({
               </h3>
               <div className="flex items-center gap-3 mb-3 bg-gray-800 rounded-lg p-3">
                 <div className="relative">
-                  {userAvatar ? (
+                  {userProfile.avatar ? (
                     <img
-                      src={userAvatar}
+                      src={userProfile.avatar}
                       alt="Avatar de Usuario"
                       className="w-12 h-12 rounded-full object-cover border-2 border-blue-500"
                     />
@@ -415,10 +385,10 @@ const StartMenu: React.FC<StartMenuProps> = ({
                   )}
                 </div>
                 <div className="flex-1">
-                  <p className="text-white font-medium">{userName}</p>
+                  <p className="text-white font-medium">{userProfile.name}</p>
                   <p className="text-gray-400 text-xs">Cuenta Local</p>
                 </div>
-                <button 
+                <button
                   className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-3 py-1.5 text-sm flex items-center"
                   onClick={() => setShowProfileModal(true)}
                 >
@@ -427,7 +397,7 @@ const StartMenu: React.FC<StartMenuProps> = ({
                 </button>
               </div>
             </div>
-            
+
             <div>
               <h3 className="text-white font-medium mb-3 flex items-center text-sm">
                 <Sun className="w-4 h-4 mr-2" />
@@ -435,10 +405,10 @@ const StartMenu: React.FC<StartMenuProps> = ({
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => onThemeChange('light')}
+                  onClick={() => setTheme('light')}
                   className={`flex items-center justify-center gap-2 px-3 py-2 rounded ${
-                    currentTheme === 'light' 
-                      ? 'bg-blue-600 text-white' 
+                    theme === 'light'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-gray-800 text-white hover:bg-gray-700'
                   }`}
                 >
@@ -446,10 +416,10 @@ const StartMenu: React.FC<StartMenuProps> = ({
                   <span>Claro</span>
                 </button>
                 <button
-                  onClick={() => onThemeChange('dark')}
+                  onClick={() => setTheme('dark')}
                   className={`flex items-center justify-center gap-2 px-3 py-2 rounded ${
-                    currentTheme === 'dark' 
-                      ? 'bg-blue-600 text-white' 
+                    theme === 'dark'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-gray-800 text-white hover:bg-gray-700'
                   }`}
                 >
@@ -513,15 +483,14 @@ const StartMenu: React.FC<StartMenuProps> = ({
 
   return (
     <div className="absolute bottom-12 left-2 w-2/3 max-w-4xl bg-gray-900 shadow-2xl rounded-t-lg overflow-hidden border border-gray-800 border-b-0">
-      {/* Barra superior con nombre de usuario */}
       <div className="flex items-center px-4 py-2 bg-gray-800 border-b border-gray-700">
-        <button 
+        <button
           className="bg-blue-600 rounded-full p-1.5 mr-3 cursor-pointer hover:bg-blue-700"
           onClick={() => setShowProfileModal(true)}
         >
-          {userAvatar ? (
+          {userProfile.avatar ? (
             <img
-              src={userAvatar}
+              src={userProfile.avatar}
               alt="Avatar de Usuario"
               className="h-5 w-5 rounded-full object-cover"
             />
@@ -530,16 +499,15 @@ const StartMenu: React.FC<StartMenuProps> = ({
           )}
         </button>
         <div>
-          <p className="text-white font-medium">{userName}</p>
+          <p className="text-white font-medium">{userProfile.name}</p>
           <p className="text-gray-400 text-xs">Cuenta Local</p>
         </div>
         <button className="ml-auto text-white hover:bg-gray-700 rounded-full p-1.5">
           <LogOut className="h-5 w-5" />
         </button>
       </div>
-      
+
       <div className="flex h-96">
-        {/* Barra lateral de navegación - Mantenemos el ancho similar al original */}
         <div className="w-16 bg-gray-800 border-r border-gray-700 flex flex-col items-center pt-4">
           <button
             onClick={() => setActiveTab('frecuentes')}
@@ -551,7 +519,7 @@ const StartMenu: React.FC<StartMenuProps> = ({
             <Clock className="h-5 w-5 text-white" />
             <span className="text-white text-xs mt-1">Frecuentes</span>
           </button>
-          
+
           <button
             onClick={() => setActiveTab('nuevo')}
             className={`p-2 mb-4 rounded-md w-12 h-12 flex flex-col items-center justify-center ${
@@ -562,7 +530,7 @@ const StartMenu: React.FC<StartMenuProps> = ({
             <Plus className="h-5 w-5 text-white" />
             <span className="text-white text-xs mt-1">Nuevo</span>
           </button>
-          
+
           <button
             onClick={() => setActiveTab('configuracion')}
             className={`p-2 mb-4 rounded-md w-12 h-12 flex flex-col items-center justify-center ${
@@ -574,18 +542,16 @@ const StartMenu: React.FC<StartMenuProps> = ({
             <span className="text-white text-xs mt-1">Config</span>
           </button>
         </div>
-        
-        {/* Contenido principal */}
+
         {renderContent()}
       </div>
 
-      {/* Modal de perfil de usuario */}
       {showProfileModal && (
         <UserProfileModal
           onClose={() => setShowProfileModal(false)}
           onSave={handleProfileUpdate}
-          userName={userName}
-          userAvatar={userAvatar}
+          userName={userProfile.name}
+          userAvatar={userProfile.avatar}
         />
       )}
       {showResetDataModal && (

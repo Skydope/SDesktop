@@ -22,7 +22,7 @@ const AddShortcutModal: React.FC<AddShortcutModalProps> = ({ onClose, onSave }) 
         const domain = urlObj.hostname.replace('www.', '');
         const capitalizedDomain = domain.charAt(0).toUpperCase() + domain.slice(1);
         setShortcut(prev => ({ ...prev, title: capitalizedDomain }));
-      } catch (error) {
+      } catch {
         // Invalid URL, do nothing
       }
     }

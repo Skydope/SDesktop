@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Minus, FolderPlus, Link, ChevronRight, Home, Folder, ChevronDown, ChevronUp, Globe, Maximize } from 'lucide-react';
+import { X, Minus, FolderPlus, Link, ChevronRight, Home, Folder, ChevronDown, Globe } from 'lucide-react';
 import { FolderItem, ShortcutItem } from '../types/desktop';
 import DesktopItem from './DesktopItem';
 import AddShortcutModal from './AddShortcutModal';
@@ -15,7 +15,6 @@ interface WindowProps {
   };
   onClose: (id: string) => void;
   onMinimize: (id: string) => void; // Nueva función para minimizar
-  onMaximize: (id: string) => void; // Nueva función para maximizar
   onAddItemToFolder?: (folderId: string, item: ShortcutItem | FolderItem) => void;
   onItemClick?: (item: ShortcutItem | FolderItem, parentFolderId: string) => void;
   onEditItem?: (item: ShortcutItem | FolderItem) => void;
@@ -32,7 +31,6 @@ const Window: React.FC<WindowProps> = ({
   window,
   onClose,
   onMinimize,
-  onMaximize,
   onAddItemToFolder,
   onItemClick,
   onEditItem,
@@ -79,6 +77,7 @@ const Window: React.FC<WindowProps> = ({
   // Get current folder dynamically based on the path
   const currentFolder = findFolderByPath(window.content, navigationPath);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     // Reset navigation when window changes, but keep expanded state
     if (navigationPath[0]?.id !== window.id) {
@@ -87,6 +86,7 @@ const Window: React.FC<WindowProps> = ({
       ]);
       setExpandedFolders(new Set([window.id]));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [window.id, window.title]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -235,9 +235,9 @@ const Window: React.FC<WindowProps> = ({
           )}
           
           {isFolder ? (
-            <Folder className="w-4 h-4 mr-1 flex-shrink-0 text-white" />
+            <Folder className="w-4 h-4 mr-1 shrink-0 text-white" />
           ) : (
-            <Globe className="w-3.5 h-3.5 mr-1 flex-shrink-0 text-blue-300" />
+            <Globe className="w-3.5 h-3.5 mr-1 shrink-0 text-blue-300" />
           )}
           
           <span className="truncate text-white">{item.title}</span>
@@ -321,7 +321,7 @@ const Window: React.FC<WindowProps> = ({
           {navigationPath.map((pathItem, index) => (
             <React.Fragment key={pathItem.id}>
               {index > 0 && (
-                <ChevronRight className="w-3 h-3 text-gray-400 mx-1 flex-shrink-0" />
+                <ChevronRight className="w-3 h-3 text-gray-400 mx-1 shrink-0" />
               )}
               <button
                 className={`px-2 py-1 rounded text-sm whitespace-nowrap ${

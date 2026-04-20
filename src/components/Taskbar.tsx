@@ -8,8 +8,6 @@ interface TaskbarProps {
   onStartMenuClick: () => void;
   onWindowClick: (window: WindowState) => void;
   onWindowClose: (windowId: string) => void;
-  onWindowMinimize: (windowId: string) => void;
-  onWindowMaximize: (windowId: string) => void;
 }
 
 const Taskbar: React.FC<TaskbarProps> = ({
@@ -18,8 +16,6 @@ const Taskbar: React.FC<TaskbarProps> = ({
   onStartMenuClick,
   onWindowClick,
   onWindowClose,
-  onWindowMinimize,
-  onWindowMaximize,
 }) => {
   const [time, setTime] = useState(new Date());
 
@@ -42,13 +38,8 @@ const Taskbar: React.FC<TaskbarProps> = ({
     });
   };
 
-  // Manejador para alternar entre minimizar y maximizar al hacer clic en la ventana
-  const handleWindowClick = (window: WindowState) => {
-    if (window.isMinimized) {
-      onWindowMaximize(window.id);
-    } else {
-      onWindowMinimize(window.id);
-    }
+  const handleTaskbarItemClick = (window: WindowState) => {
+    onWindowClick(window);
   };
 
   return (
@@ -68,11 +59,11 @@ const Taskbar: React.FC<TaskbarProps> = ({
         {openWindows.map((window) => (
           <div
             key={window.id}
-            onClick={() => handleWindowClick(window)}
+            onClick={() => handleTaskbarItemClick(window)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${
               window.isActive && !window.isMinimized ? 'bg-white/20' : 'hover:bg-white/10'
             }`}
-            title={window.isMinimized ? "Restaurar" : "Minimizar"}
+            title={window.isMinimized ? 'Restaurar' : 'Minimizar'}
           >
             {window.icon ? (
               <img
@@ -85,14 +76,13 @@ const Taskbar: React.FC<TaskbarProps> = ({
             )}
 
             <span className="text-white text-sm">{window.title}</span>
-            
-            {/* Indicador visual de minimizado/maximizado */}
+
             {window.isMinimized ? (
               <Maximize className="w-3 h-3 text-gray-400" />
             ) : (
               <Minimize className="w-3 h-3 text-gray-400" />
             )}
-            
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -106,7 +96,6 @@ const Taskbar: React.FC<TaskbarProps> = ({
         ))}
       </div>
 
-      {/* Fecha y hora */}
       <div className="flex flex-col items-end text-white text-xs ml-auto px-2 select-none">
         <span>{formatTime(time)}</span>
         <span>{formatDate(time)}</span>
