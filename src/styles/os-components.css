@@ -2089,28 +2089,161 @@
   bottom: 0;
 }
 
-/* ── Dock ───────────────────────────────── */
+/* ── Dock (Unified Bottom Bar) ───────────────────────────────── */
 
 .os-dock {
   position: fixed;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: var(--z-dock);
-  padding: 4px 8px;
+  display: flex;
+  justify-content: center;
+  padding: 0 0 4px 0;
+  pointer-events: none;
 }
 
-.os-dock__inner {
+.os-dock__bar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 6px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border-radius: 14px 14px 0 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: none;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  pointer-events: auto;
+  max-width: 95vw;
+}
+
+.os-dock__start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease-smooth);
+  flex-shrink: 0;
+}
+
+.os-dock__start-btn:hover,
+.os-dock__start-btn--active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.os-dock__start-btn svg {
+  width: 22px;
+  height: 14px;
+  color: var(--text-primary);
+}
+
+.os-dock__divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.os-dock__windows {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  overflow-x: auto;
+  max-width: 50vw;
+  padding: 0 4px;
+}
+
+.os-dock__windows::-webkit-scrollbar {
+  display: none;
+}
+
+.os-dock__window {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  transition: background var(--duration-fast) var(--ease-smooth),
+              color var(--duration-fast) var(--ease-smooth);
+  max-width: 160px;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.os-dock__window:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.os-dock__window--active {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.os-dock__window-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.os-dock__window-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.os-dock__window-action {
+  width: 12px;
+  height: 12px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.os-dock__window-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 0;
+  border-radius: var(--radius-full);
+  transition: background var(--duration-fast) var(--ease-smooth),
+              color var(--duration-fast) var(--ease-smooth);
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.os-dock__window:hover .os-dock__window-close {
+  opacity: 1;
+}
+
+.os-dock__window-close:hover {
+  background: rgba(239, 68, 68, 0.6);
+  color: #fff;
+}
+
+.os-dock__window-close-icon {
+  width: 10px;
+  height: 10px;
 }
 
 .os-dock__apps {
@@ -2135,9 +2268,9 @@
 }
 
 .os-dock__icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
   display: flex;
   align-items: center;
@@ -2148,8 +2281,8 @@
 }
 
 .os-dock__icon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   color: white;
 }
 
@@ -2168,6 +2301,16 @@
   align-self: center;
 }
 
+.os-dock__clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--text-secondary);
+  font-size: 11px;
+  flex-shrink: 0;
+  padding: 0 6px;
+}
+
 @keyframes os-dock-bounce {
   0%, 100% { transform: translateY(0); }
   25% { transform: translateY(-20px); }
@@ -2180,15 +2323,7 @@
 }
 
 .os-dock__glow {
-  position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80%;
-  height: 20px;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
-  filter: blur(8px);
-  pointer-events: none;
+  display: none;
 }
 
 /* ── Finder ───────────────────────────────── */

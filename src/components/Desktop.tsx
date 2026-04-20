@@ -3,7 +3,6 @@ import { ShortcutItem, FolderItem, AppId } from '../types/desktop'
 import { useDesktopStore } from '../store/desktopStore'
 import { getFaviconUrl } from '../utils/favicon'
 import DesktopItem from './DesktopItem'
-import Taskbar from './Taskbar'
 import StartMenu from './StartMenu'
 import Window from './Window'
 import EditModal from './EditModal'
@@ -203,18 +202,6 @@ const Desktop: React.FC = () => {
         onOpenItem={handleItemClick}
         onOpenApp={openApp}
         allItems={getAllItems()}
-      />
-
-      {/* Taskbar */}
-      <Taskbar
-        openWindows={openWindows}
-        isStartMenuOpen={isStartMenuOpen}
-        onStartMenuClick={toggleStartMenu}
-        onWindowClick={(w) => {
-          setActiveWindow(w.id)
-          if (w.isMinimized) maximizeWindow(w.id)
-        }}
-        onWindowClose={closeWindow}
       />
 
       {/* Modals */}
