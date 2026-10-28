@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Clock,
   Plus,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useDesktopStore } from '../store/desktopStore'
 import { useTheme } from '../hooks/useTheme'
+import { toast } from '../hooks/useToast'
 import UserProfileModal from './UserProfileModal'
 import ResetAllDataModal from './ResetAllDataModal'
 import type { ShortcutItem, FolderItem, AppId } from '../types/desktop'
@@ -29,7 +30,7 @@ interface StartMenuProps {
   onAddFolder: (folder: { title: string; icon: string }) => void
   onWallpaperChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onWallpaperSelect: (url: string) => void
-  onClearData?: () => void
+  onClearData?: () => void | Promise<void>
   isOpen: boolean
   allItems?: (ShortcutItem | FolderItem)[]
   onOpenItem?: (item: ShortcutItem | FolderItem) => void
@@ -68,7 +69,6 @@ const StartMenu: React.FC<StartMenuProps> = ({
   const [newFolder, setNewFolder] = useState({ title: '', icon: '' })
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [showResetDataModal, setShowResetDataModal] = useState(false)
-  const [frequentItems, setFrequentItems] = useState<(ShortcutItem | FolderItem)[]>([])
 
   const getAllNestedItems = (
     items: (ShortcutItem | FolderItem)[]
@@ -83,17 +83,10 @@ const StartMenu: React.FC<StartMenuProps> = ({
     return allNestedItems
   }
 
-  useEffect(() => {
-    if (allItems.length > 0) {
-      const allNestedItems = getAllNestedItems(allItems)
-      const itemsWithClickCount = allNestedItems.map((item) => ({
-        ...item,
-        clickCount: item.clickCount || 0,
-      }))
-      const sortedItems = itemsWithClickCount.sort((a, b) => b.clickCount - a.clickCount)
-      setFrequentItems(sortedItems.slice(0, 12))
-    }
-  }, [allItems])
+  const frequentItems = getAllNestedItems(allItems)
+    .map((item) => ({ ...item, clickCount: item.clickCount || 0 }))
+    .sort((a, b) => b.clickCount - a.clickCount)
+    .slice(0, 12)
 
   const handlePasteFromClipboard = async () => {
     try {
@@ -110,13 +103,23 @@ const StartMenu: React.FC<StartMenuProps> = ({
     setShowResetDataModal(true)
   }
 
-  const executeDataReset = () => {
-    if (onClearData) {
-      onClearData()
-    } else {
-      clearAllData()
+  const executeDataReset = async () => {
+    try {
+      await (onClearData ? onClearData() : clearAllData())
+    } catch (err) {
+      // Si el wipe del VFS falla el reset quedo a medias; no recargar, porque
+      // eso lo dejaria pareciendo exitoso.
+      toast.error(
+        'No se pudo borrar todo',
+        err instanceof Error ? err.message : String(err)
+      )
+      setShowResetDataModal(false)
+      return
     }
     setShowResetDataModal(false)
+    // Resetear un OS es rebootearlo: recargar garantiza que ninguna ventana
+    // abierta siga mostrando el filesystem viejo.
+    window.location.reload()
   }
 
   const handleProfileUpdate = (profile: { name: string; avatar: string }) => {

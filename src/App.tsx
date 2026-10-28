@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import Desktop from './components/Desktop'
 import ToastContainer from './components/ToastContainer'
 import BootScreen from './components/boot/BootScreen'
@@ -11,11 +11,19 @@ import { processManager } from './process'
 function App() {
   const [booted, setBooted] = useState(false)
   const [bootLoaded, setBootLoaded] = useState(false)
+  const [initError, setInitError] = useState<Error | null>(null)
   const skipBoot = useDesktopStore(s => s.skipBoot)
 
   useEffect(() => {
     const init = async () => {
-      await vfs.init()
+      try {
+        await vfs.init()
+      } catch (err) {
+        // IndexedDB puede no estar disponible (ventana privada, storage
+        // bloqueado). Sin este catch la app queda en "Loading..." para siempre.
+        setInitError(err instanceof Error ? err : new Error(String(err)))
+        return
+      }
       processManager.spawn('launchd', 'launchd', [])
       setBootLoaded(true)
     }
@@ -24,6 +32,21 @@ function App() {
 
   const handleBootComplete = () => {
     setBooted(true)
+  }
+
+  if (initError) {
+    return (
+      <div className="os-boot" role="alert">
+        <div className="os-boot__content">
+          <div className="os-boot__title">No se pudo montar el filesystem</div>
+          <p className="os-boot__error">{initError.message}</p>
+          <p className="os-boot__error">
+            SDesktop guarda su filesystem en IndexedDB. Revisa que el navegador
+            permita almacenamiento para este sitio.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (!bootLoaded) {
@@ -40,10 +63,6 @@ function App() {
 
   if (!booted && !skipBoot) {
     return <BootScreen onComplete={handleBootComplete} />
-  }
-
-  if (!booted && skipBoot) {
-    setBooted(true)
   }
 
   return (

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ShortcutItem, FolderItem, WindowState } from '../types/desktop';
+import { vfs } from '../vfs';
 import { APP_REGISTRY } from '../types/desktop';
 
 const defaultWallpaper = 'https://images.unsplash.com/photo-1477346611705-65d1883cee1e?auto=format&fit=crop&w=1920&q=80';
@@ -35,7 +36,7 @@ interface DesktopActions {
   setActiveWindow: (id: string) => void;
   toggleStartMenu: () => void;
   updateUserProfile: (profile: UserProfile) => void;
-  clearAllData: () => void;
+  clearAllData: () => Promise<void>;
   findFolderById: (id: string) => FolderItem | null;
   getAllItems: () => (ShortcutItem | FolderItem)[];
   setSkipBoot: (skip: boolean) => void;
@@ -244,7 +245,6 @@ export const useDesktopStore = create<DesktopStore>()(
         const app = APP_REGISTRY[appId as keyof typeof APP_REGISTRY];
         if (!app) return;
         const windowId = `${appId}-${Date.now()}`;
-        const offset = get().openWindows.length * 24;
         set((state) => ({
           openWindows: [
             ...state.openWindows.map((w) => ({ ...w, isActive: false })),
@@ -295,7 +295,14 @@ export const useDesktopStore = create<DesktopStore>()(
 
       updateUserProfile: (profile) => set({ userProfile: profile }),
 
-      clearAllData: () => set(initialState),
+      clearAllData: async () => {
+        set(initialState);
+        // El store vive en localStorage y el VFS en IndexedDB: resetear uno
+        // solo dejaba el filesystem viejo. clear() marca el VFS como no
+        // inicializado, asi que init() lo vuelve a sembrar por defecto.
+        await vfs.clear();
+        await vfs.init();
+      },
 
       findFolderById: (id) => findFolderByIdRecursive(get().items, id),
 

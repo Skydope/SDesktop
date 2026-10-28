@@ -1,5 +1,16 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useDesktopStore } from '../store/desktopStore';
+
+// clearAllData ahora limpia tambien el VFS, que vive en IndexedDB. jsdom no la
+// trae, asi que se stubea la capa de storage.
+vi.mock('../vfs/storage', () => ({
+  vfsStorage: {
+    init: vi.fn().mockResolvedValue(undefined),
+    save: vi.fn().mockResolvedValue(undefined),
+    load: vi.fn().mockResolvedValue(null),
+    clear: vi.fn().mockResolvedValue(undefined),
+  },
+}));
 import type { ShortcutItem, FolderItem } from '../types/desktop';
 
 describe('desktopStore', () => {
@@ -124,6 +135,7 @@ describe('desktopStore', () => {
         type: 'folder',
         content: folder,
         isMinimized: false,
+        isMaximized: false,
       });
 
       expect(useDesktopStore.getState().openWindows).toHaveLength(1);
@@ -154,6 +166,7 @@ describe('desktopStore', () => {
         type: 'folder',
         content: folder1,
         isMinimized: false,
+        isMaximized: false,
       });
 
       useDesktopStore.getState().openWindow({
@@ -163,6 +176,7 @@ describe('desktopStore', () => {
         type: 'folder',
         content: folder2,
         isMinimized: false,
+        isMaximized: false,
       });
 
       const windows = useDesktopStore.getState().openWindows;
@@ -189,6 +203,7 @@ describe('desktopStore', () => {
         type: 'folder',
         content: folder,
         isMinimized: false,
+        isMaximized: false,
       });
 
       useDesktopStore.getState().closeWindow('1');
@@ -214,6 +229,7 @@ describe('desktopStore', () => {
         type: 'folder',
         content: folder,
         isMinimized: false,
+        isMaximized: false,
       });
 
       useDesktopStore.getState().minimizeWindow('1');
@@ -237,6 +253,7 @@ describe('desktopStore', () => {
         type: 'folder',
         content: folder,
         isMinimized: true,
+        isMaximized: false,
       });
 
       useDesktopStore.getState().maximizeWindow('1');
@@ -246,7 +263,7 @@ describe('desktopStore', () => {
   });
 
   describe('clearAllData', () => {
-    it('should reset all state to initial values', () => {
+    it('should reset all state to initial values', async () => {
       // Set some state
       useDesktopStore.setState({
         wallpaper: 'https://custom.com/wallpaper.jpg',
@@ -255,7 +272,7 @@ describe('desktopStore', () => {
         userProfile: { name: 'Custom User', avatar: 'https://avatar.com/img.jpg' },
       });
 
-      useDesktopStore.getState().clearAllData();
+      await useDesktopStore.getState().clearAllData();
 
       const state = useDesktopStore.getState();
       expect(state.wallpaper).toBe('https://images.unsplash.com/photo-1477346611705-65d1883cee1e?auto=format&fit=crop&w=1920&q=80');
