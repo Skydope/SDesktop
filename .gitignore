@@ -36,6 +36,7 @@ logs
 # Cache
 .npm
 .eslintcache
+*.tsbuildinfo
 
 # Archivos temporales
 *.tmp
@@ -58,9 +59,5 @@ dist_electron/
 # Coverage
 coverage/
 
-# SDD y Skills locales
-SKILLS/
+# SDD local
 sdd/
-
-# Features
-features/
