@@ -59,16 +59,19 @@ para `new Error(msg, { cause })`).
 
 ## Dónde va el estado
 
-Hay dos sistemas y **no** son intercambiables (ver
-[ARCHITECTURE.md](ARCHITECTURE.md#los-dos-estados)):
+**El VFS es la única fuente de verdad persistida.** El escritorio ES
+`/Users/guest/Desktop`; no existe un árbol de items aparte.
 
-- `src/store/desktopStore.ts` — estado de **UI** en Zustand + `localStorage`: ventanas, tema,
-  perfil, wallpaper, el árbol `items` del escritorio.
-- `src/vfs/` — el **filesystem** POSIX en IndexedDB: lo que ven el Finder y la Terminal.
+- `src/vfs/` — el filesystem POSIX en IndexedDB. Todo lo que es contenido va acá.
+- `src/store/desktopItems.ts` — el puente: proyecta nodos del VFS a
+  `ShortcutItem | FolderItem` y traduce las mutaciones al revés. El `id` de un item **es su
+  path**, y su `title` es el nombre del archivo, así que renombrar es un `move`.
+- `src/store/desktopStore.ts` — solo estado de **UI**: ventanas, tema, perfil, wallpaper.
+  `items` vive acá pero es una vista derivada y **no se persiste**.
 
-Están desconectados, y unificarlos es la decisión pendiente número uno. Mientras tanto, si
-tocás uno pensá si el otro también necesita el cambio. El caso que ya mordió:
-`clearAllData()` reseteaba el store y dejaba el VFS entero adentro.
+Si agregás algo que el usuario crea o edita, va al VFS, no al store. Y si mutás el VFS desde
+un lugar nuevo, no hace falta avisarle a nadie: `vfs.subscribe()` ya notifica al escritorio y
+al Finder.
 
 ## Agregar un comando al shell
 

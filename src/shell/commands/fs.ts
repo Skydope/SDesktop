@@ -165,11 +165,7 @@ export const rmCommand: Command = {
         throw new Error(`rm: ${path}: Is a directory (use -r to remove)`)
       }
 
-      if (stat.type === 'folder') {
-        await ctx.vfs.rmdir(targetPath)
-      } else {
-        await ctx.vfs.unlink(targetPath)
-      }
+      await ctx.vfs.remove(targetPath, recursive)
     }
 
     return ''

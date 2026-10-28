@@ -61,6 +61,7 @@ pnpm format        # prettier --write
 | **Ventanas** (`src/components/Window.tsx`) | Arrastrar, redimensionar, minimizar, maximizar, cerrar, escalonado en cascada, semáforos. |
 | **Dock** (`src/components/dock/`) | Magnificación al hover, bounce al abrir, indicadores de app corriendo, reloj. |
 | **Boot** (`src/components/boot/`) | Secuencia de arranque, salteable con `skipBoot` (persistido). |
+| **Escritorio** (`src/store/desktopItems.ts`) | Proyecta `/Users/guest/Desktop` del VFS a los iconos del escritorio, y traduce crear/renombrar/borrar al filesystem. |
 | **Context menus** | Click derecho en el escritorio y sobre items, con clamping contra los bordes y cierre con Escape. |
 
 ### No funciona todavía (y la UI no siempre lo admite)
@@ -75,19 +76,26 @@ pnpm format        # prettier --write
 | **Procesos de apps** | `ProcessManager` funciona, pero **abrir una app no spawnea un proceso**: solo `launchd` existe. Así que `ps` nunca refleja el dock ni las ventanas. `memory` es `Math.random()`. |
 | **Permisos del VFS** | Se guardan y se muestran en `ls -l`, pero **ninguna operación los chequea**. |
 | **Geometría de ventanas** | La posición y el tamaño viven en estado local del componente, no en el store, así que se pierden al cerrar. `openWindows` tampoco se persiste: las ventanas no sobreviven un reload (es a propósito, por ahora). |
+| **Cortar / pegar entre carpetas** | El VFS ya tiene `move` y `copy` recursivos, pero el escritorio todavía no expone arrastrar items entre carpetas. |
 | **Accesibilidad** | Mínima. Cero `role=` fuera del context menu y el error boundary, cero focus trap en los 6 modales, drag solo con mouse. |
 
-### El límite de fidelidad más grande
+### Un solo filesystem
 
-**Hay dos filesystems que no se hablan.** El escritorio, el Dock y el StartMenu leen un árbol
-`items` que vive en el store de Zustand (localStorage). El Finder y la Terminal leen el VFS
-POSIX (IndexedDB). Son dos modelos incompatibles de la misma cosa.
+El escritorio **es** `/Users/guest/Desktop`. No hay un árbol de items aparte: el escritorio,
+el Finder y la Terminal son tres vistas en vivo del mismo VFS.
 
-Consecuencia concreta: `mkdir prueba` en la terminal **no aparece en el escritorio**, y una
-carpeta creada en el escritorio no existe para `ls`.
+```
+$ cd Desktop && mkdir Proyectos      # aparece en el escritorio al instante
+$ rm -r Proyectos                    # y desaparece
+```
 
-Para un proyecto cuyo objetivo es la fidelidad de OS, ese es el techo real — no las versiones
-de las dependencias. El diseño de la unificación está en [ARCHITECTURE.md](ARCHITECTURE.md#decisiones-pendientes).
+Crear, renombrar o borrar desde el escritorio se ve en `ls` y en el Finder, y al revés, sin
+recargar. Renombrar un item es literalmente un `move` en el filesystem, porque el nombre del
+archivo es el título.
+
+Hasta octubre de 2026 esto no era así: el escritorio vivía en un árbol de Zustand en
+`localStorage` y el Finder y la Terminal en el VFS en IndexedDB, dos modelos incompatibles de
+la misma cosa. El detalle está en [ARCHITECTURE.md](ARCHITECTURE.md#una-sola-fuente-de-verdad).
 
 ## Estructura
 
@@ -96,7 +104,7 @@ src/
 ├── vfs/            filesystem virtual POSIX sobre IndexedDB
 ├── shell/          CommandEngine + los 27 comandos
 ├── process/        tabla de procesos (simulada)
-├── store/          estado de UI en Zustand (ventanas, tema, items, perfil)
+├── store/          estado de UI en Zustand + la proyeccion VFS <-> escritorio
 ├── components/     escritorio, ventanas, dock, menubar, finder, terminal, modales
 ├── hooks/          useWindowManagement, useToast, useTheme
 ├── types/          APP_REGISTRY y los tipos del escritorio

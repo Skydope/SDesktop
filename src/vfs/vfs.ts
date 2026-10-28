@@ -4,6 +4,7 @@ import { vfsStorage } from './storage';
 
 export class VirtualFilesystem {
   private tree: VFSTree = {};
+  private listeners: Set<() => void> = new Set();
   private initialized = false;
   private initPromise: Promise<void> | null = null;
 
@@ -79,11 +80,29 @@ export class VirtualFilesystem {
     await this._persist();
   }
 
+  /**
+   * Avisa cuando el arbol cambia. Es lo que permite que un `mkdir` en la
+   * terminal aparezca en el escritorio sin que cada comando tenga que saber
+   * quien lo esta mirando. Devuelve la funcion para desuscribirse.
+   */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
   private async _persist(): Promise<void> {
     try {
       await vfsStorage.save(this.tree);
     } catch (err) {
       console.error('[VFS] Failed to persist:', err);
+    }
+
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch (err) {
+        console.error('[VFS] Listener failed:', err);
+      }
     }
   }
 
@@ -395,6 +414,62 @@ export class VirtualFilesystem {
         if (!newPaths.has(oldPath)) delete this.tree[oldPath];
       }
     }
+  }
+
+  /**
+   * Mergea metadata sobre un nodo. Es como el escritorio guarda el icono de un
+   * item sin necesitar una tabla aparte.
+   */
+  async setMetadata(path: string, patch: Record<string, string>): Promise<void> {
+    this.ensureInitialized();
+    const resolved = this.resolvePath(path);
+    const node = this.tree[resolved];
+
+    if (!node) {
+      throw new Error(`No such path: ${path}`);
+    }
+
+    node.metadata = { ...node.metadata, ...patch };
+    node.modifiedAt = Date.now();
+    await this._persist();
+  }
+
+  /**
+   * Borra un path, sea archivo o carpeta. Con `recursive`, se lleva el subarbol
+   * entero. `unlink`/`rmdir` siguen siendo los primitivos POSIX estrictos.
+   */
+  async remove(path: string, recursive = false): Promise<void> {
+    this.ensureInitialized();
+    const resolved = this.resolvePath(path);
+    const node = this.tree[resolved];
+
+    if (!node) {
+      throw new Error(`No such path: ${path}`);
+    }
+
+    if (node.type !== 'folder') {
+      await this.unlink(resolved);
+      return;
+    }
+
+    const prefix = resolved + '/';
+    const descendants = Object.keys(this.tree).filter(p => p.startsWith(prefix));
+
+    if (descendants.length > 0 && !recursive) {
+      throw new Error(`Directory not empty: ${path}`);
+    }
+
+    for (const descendant of descendants) {
+      delete this.tree[descendant];
+    }
+
+    const parent = this.tree[this.getParentPath(resolved)];
+    if (parent) {
+      parent.children = parent.children?.filter(id => id !== resolved) || [];
+    }
+
+    delete this.tree[resolved];
+    await this._persist();
   }
 
   async chmod(path: string, permissions: VFSPermissions): Promise<void> {

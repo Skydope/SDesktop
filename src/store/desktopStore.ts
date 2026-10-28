@@ -3,6 +3,13 @@ import { persist } from 'zustand/middleware';
 import type { ShortcutItem, FolderItem, WindowState } from '../types/desktop';
 import { vfs } from '../vfs';
 import { APP_REGISTRY } from '../types/desktop';
+import {
+  DESKTOP_PATH,
+  readDesktopItems,
+  writeItem,
+  updateItemAt,
+  migrateLegacyItems,
+} from './desktopItems';
 
 const defaultWallpaper = 'https://images.unsplash.com/photo-1477346611705-65d1883cee1e?auto=format&fit=crop&w=1920&q=80';
 
@@ -14,6 +21,10 @@ interface UserProfile {
 interface DesktopState {
   wallpaper: string;
   theme: 'light' | 'dark';
+  /**
+   * Vista derivada de /Users/guest/Desktop. NO se persiste: la fuente de verdad
+   * es el VFS, asi que un `mkdir` en la terminal aparece aca y viceversa.
+   */
   items: (ShortcutItem | FolderItem)[];
   openWindows: WindowState[];
   isStartMenuOpen: boolean;
@@ -24,10 +35,12 @@ interface DesktopState {
 interface DesktopActions {
   setWallpaper: (wallpaper: string) => void;
   setTheme: (theme: 'light' | 'dark') => void;
-  addItem: (item: ShortcutItem | FolderItem) => void;
-  addItemToFolder: (folderId: string, item: ShortcutItem | FolderItem) => void;
-  updateItem: (id: string, updatedItem: ShortcutItem | FolderItem, parentId?: string) => void;
-  deleteItem: (id: string, parentId?: string) => void;
+  refreshItems: () => Promise<void>;
+  initDesktop: () => Promise<void>;
+  addItem: (item: ShortcutItem | FolderItem) => Promise<void>;
+  addItemToFolder: (folderId: string, item: ShortcutItem | FolderItem) => Promise<void>;
+  updateItem: (id: string, updatedItem: ShortcutItem | FolderItem) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
   openWindow: (window: Omit<WindowState, 'isActive'>) => void;
   openApp: (appId: string) => void;
   closeWindow: (id: string) => void;
@@ -86,67 +99,9 @@ const getAllItemsRecursive = (
   return result;
 };
 
-// Helper: Update item in nested structure
-const updateItemRecursive = (
-  items: (ShortcutItem | FolderItem)[],
-  id: string,
-  updatedItem: ShortcutItem | FolderItem
-): (ShortcutItem | FolderItem)[] => {
-  return items.map(item => {
-    if (item.id === id) {
-      return {
-        ...updatedItem,
-        clickCount: item.clickCount || 0,
-        ...('items' in item ? { items: (item as FolderItem).items } : {}),
-      };
-    }
-    if ('items' in item) {
-      return {
-        ...item,
-        items: updateItemRecursive(item.items, id, updatedItem),
-      };
-    }
-    return item;
-  });
-};
-
-// Helper: Delete item from nested structure
-const deleteItemRecursive = (
-  items: (ShortcutItem | FolderItem)[],
-  id: string
-): (ShortcutItem | FolderItem)[] => {
-  return items
-    .filter(item => item.id !== id)
-    .map(item => {
-      if ('items' in item) {
-        return {
-          ...item,
-          items: deleteItemRecursive(item.items, id),
-        };
-      }
-      return item;
-    });
-};
-
-// Helper: Add item to folder recursively
-const addItemToFolderRecursive = (
-  items: (ShortcutItem | FolderItem)[],
-  folderId: string,
-  newItem: ShortcutItem | FolderItem
-): (ShortcutItem | FolderItem)[] => {
-  return items.map(item => {
-    if (item.id === folderId && 'items' in item) {
-      return { ...item, items: [...item.items, newItem] };
-    }
-    if ('items' in item) {
-      return {
-        ...item,
-        items: addItemToFolderRecursive(item.items, folderId, newItem),
-      };
-    }
-    return item;
-  });
-};
+// StrictMode monta el efecto de arranque dos veces en dev; sin esto quedarian
+// dos listeners del VFS y cada escritura refrescaria el escritorio dos veces.
+let unsubscribeVfs: (() => void) | null = null;
 
 export const useDesktopStore = create<DesktopStore>()(
   persist(
@@ -157,81 +112,80 @@ export const useDesktopStore = create<DesktopStore>()(
 
       setTheme: (theme) => set({ theme }),
 
-      addItem: (item) =>
+      /**
+       * Relee el escritorio del VFS y re-apunta el contenido de las ventanas de
+       * carpeta abiertas. Antes cada accion mutadora tenia su propio loop de
+       * resync porque `items` era un arbol aparte; ahora hay un solo lugar.
+       */
+      refreshItems: async () => {
+        const items = await readDesktopItems();
         set((state) => ({
-          items: [...state.items, item],
-          isStartMenuOpen: false,
-        })),
+          items,
+          openWindows: state.openWindows.map((w) =>
+            w.type === 'folder'
+              ? { ...w, content: findFolderByIdRecursive(items, w.id) ?? w.content }
+              : w
+          ),
+        }));
+      },
 
-      addItemToFolder: (folderId, newItem) =>
-        set((state) => {
-          const newItems = addItemToFolderRecursive(state.items, folderId, newItem)
-          const newWindows = state.openWindows.map((w) => {
-            if (w.id === folderId && w.type === 'folder') {
-              const updatedFolder = findFolderByIdRecursive(newItems, folderId)
-              if (updatedFolder) return { ...w, content: updatedFolder }
-            }
-            if (w.type === 'folder') {
-              const updatedFolder = findFolderByIdRecursive(newItems, w.id)
-              if (updatedFolder) return { ...w, content: updatedFolder }
-            }
-            return w
-          })
-          return { items: newItems, openWindows: newWindows }
-        }),
+      initDesktop: async () => {
+        await vfs.mkdir(DESKTOP_PATH, true).catch(() => {});
+        await migrateLegacyItems();
+        await get().refreshItems();
 
-      updateItem: (id, updatedItem, parentId) =>
-        set((state) => {
-          const newItems = updateItemRecursive(state.items, id, updatedItem);
-          const newWindows = state.openWindows.map((w) => {
-            if (w.id === id) {
-              return {
-                ...w,
-                title: updatedItem.title,
-                icon: updatedItem.icon,
-                ...(w.type === 'folder'
-                  ? {
-                      content: {
-                        ...w.content,
-                        title: updatedItem.title,
-                        icon: updatedItem.icon,
-                      },
-                    }
-                  : {}),
-              };
-            }
-            if (parentId && w.id === parentId) {
-              const updatedFolder = findFolderByIdRecursive(newItems, parentId);
-              if (updatedFolder) return { ...w, content: updatedFolder };
-            }
-            return w;
+        // Lo que mute el VFS por fuera del store (la terminal, el Finder) se
+        // refleja solo en el escritorio. Sin esto, `mkdir` en la terminal no
+        // aparecia, que era el techo de fidelidad del proyecto.
+        if (!unsubscribeVfs) {
+          unsubscribeVfs = vfs.subscribe(() => {
+            void get().refreshItems();
           });
-          return { items: newItems, openWindows: newWindows };
-        }),
+        }
+      },
 
-      deleteItem: (id, parentId) =>
-        set((state) => {
-          if (parentId) {
-            const properlyDeleted = deleteItemRecursive(state.items, id);
-            const newWindows = state.openWindows
-              .map((w) => {
-                if (w.id === parentId) {
-                  const updatedFolder = findFolderByIdRecursive(
-                    properlyDeleted,
-                    parentId
-                  );
-                  if (updatedFolder) return { ...w, content: updatedFolder };
-                }
-                return w;
-              })
-              .filter((w) => w.id !== id);
-            return { items: properlyDeleted, openWindows: newWindows };
-          }
-          return {
-            items: deleteItemRecursive(state.items, id),
-            openWindows: state.openWindows.filter((w) => w.id !== id),
-          };
-        }),
+      addItem: async (item) => {
+        await writeItem(DESKTOP_PATH, item);
+        set({ isStartMenuOpen: false });
+        await get().refreshItems();
+      },
+
+      addItemToFolder: async (folderId, newItem) => {
+        await writeItem(folderId, newItem);
+        await get().refreshItems();
+      },
+
+      updateItem: async (id, updatedItem) => {
+        const nextId = await updateItemAt(id, updatedItem);
+
+        // Renombrar es mover, asi que el path cambia y con el, el id. Las
+        // ventanas abiertas de ese item y de lo que cuelga de el tienen que
+        // seguirlo, o quedan apuntando a un path que ya no existe.
+        if (nextId !== id) {
+          set((state) => ({
+            openWindows: state.openWindows.map((w) => {
+              if (w.id === id) return { ...w, id: nextId, title: updatedItem.title };
+              if (w.id.startsWith(id + '/')) {
+                return { ...w, id: nextId + w.id.slice(id.length) };
+              }
+              return w;
+            }),
+          }));
+        }
+
+        await get().refreshItems();
+      },
+
+      deleteItem: async (id) => {
+        await vfs.remove(id, true);
+        // Cerrar la ventana del item y las de todo lo que colgaba de el.
+        set((state) => ({
+          openWindows: state.openWindows.filter(
+            (w) => w.id !== id && !w.id.startsWith(id + '/')
+          ),
+        }));
+        await get().refreshItems();
+      },
 
       openWindow: (windowData) =>
         set((state) => ({
@@ -302,6 +256,7 @@ export const useDesktopStore = create<DesktopStore>()(
         // inicializado, asi que init() lo vuelve a sembrar por defecto.
         await vfs.clear();
         await vfs.init();
+        await get().refreshItems();
       },
 
       findFolderById: (id) => findFolderByIdRecursive(get().items, id),
@@ -312,10 +267,10 @@ export const useDesktopStore = create<DesktopStore>()(
     }),
     {
       name: 'desktopState',
+      // `items` NO se persiste: el escritorio se lee del VFS en cada arranque.
       partialize: (state) => ({
         wallpaper: state.wallpaper,
         theme: state.theme,
-        items: state.items,
         userProfile: state.userProfile,
         skipBoot: state.skipBoot,
       }),

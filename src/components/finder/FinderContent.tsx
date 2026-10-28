@@ -97,8 +97,14 @@ const FinderContent: React.FC<FinderContentProps> = ({ initialPath = '/Users/gue
     }
 
     load()
+
+    // El Finder es una vista del VFS, no su dueno: si la terminal o el
+    // escritorio mutan el directorio que esta mostrando, se relee solo.
+    const unsubscribe = vfs.subscribe(load)
+
     return () => {
       cancelled = true
+      unsubscribe()
     }
   }, [currentPath])
 

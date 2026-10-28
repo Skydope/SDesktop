@@ -28,15 +28,12 @@ const Desktop: React.FC = () => {
     maximizeWindow,
     setActiveWindow,
     clearAllData,
-    findFolderById,
     getAllItems,
   } = useDesktopStore()
 
   const [editItem, setEditItem] = useState<ShortcutItem | FolderItem | null>(null)
   const [propertiesItem, setPropertiesItem] = useState<ShortcutItem | FolderItem | null>(null)
-  const [editParentId, setEditParentId] = useState<string | null>(null)
   const [deleteItem, setDeleteItem] = useState<ShortcutItem | FolderItem | null>(null)
-  const [deleteParentId, setDeleteParentId] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean
     position: ContextMenuPosition
@@ -105,47 +102,25 @@ const Desktop: React.FC = () => {
     }
   }
 
-  const handleItemEdit = (item: ShortcutItem | FolderItem, parentFolderId?: string) => {
+  const handleItemEdit = (item: ShortcutItem | FolderItem) => {
     setEditItem(item)
-    setEditParentId(parentFolderId || null)
   }
 
-  const handleItemDelete = (itemId: string, parentFolderId?: string) => {
-    const findItemById = (
-      items: (ShortcutItem | FolderItem)[],
-      id: string
-    ): ShortcutItem | FolderItem | null => {
-      for (const item of items) {
-        if (item.id === id) return item
-        if ('items' in item) {
-          const found = findItemById(item.items, id)
-          if (found) return found
-        }
-      }
-      return null
-    }
-
-    const allItems = getAllItems()
-    const itemToDelete = parentFolderId
-      ? findItemById(findFolderById(parentFolderId)?.items || [], itemId)
-      : findItemById(allItems, itemId)
-
+  const handleItemDelete = (itemId: string) => {
+    const itemToDelete = getAllItems().find((i) => i.id === itemId)
     if (itemToDelete) {
       setDeleteItem(itemToDelete)
-      setDeleteParentId(parentFolderId || null)
     }
   }
 
   const handleConfirmDelete = (itemId: string) => {
-    removeItem(itemId, deleteParentId || undefined)
+    removeItem(itemId)
     setDeleteItem(null)
-    setDeleteParentId(null)
   }
 
   const handleSaveEditedItem = (updatedItem: ShortcutItem | FolderItem) => {
-    updateItem(updatedItem.id, updatedItem, editParentId || undefined)
+    updateItem(updatedItem.id, updatedItem)
     setEditItem(null)
-    setEditParentId(null)
   }
 
   const handleWindowMinimize = (windowId: string) => {
@@ -216,8 +191,8 @@ const Desktop: React.FC = () => {
           onMaximize={handleWindowMaximize}
           onAddItemToFolder={addItemToFolder}
           onItemClick={handleItemClick}
-          onEditItem={(item) => handleItemEdit(item, win.id)}
-          onDeleteItem={(itemId) => handleItemDelete(itemId, win.id)}
+          onEditItem={handleItemEdit}
+          onDeleteItem={handleItemDelete}
           onViewProperties={(i) => setPropertiesItem(i)}
           onBringToFront={handleBringWindowToFront}
         />
@@ -241,10 +216,7 @@ const Desktop: React.FC = () => {
         <EditModal
           key={editItem.id}
           item={editItem}
-          onClose={() => {
-            setEditItem(null)
-            setEditParentId(null)
-          }}
+          onClose={() => setEditItem(null)}
           onSave={handleSaveEditedItem}
         />
       )}
@@ -259,10 +231,7 @@ const Desktop: React.FC = () => {
       {deleteItem && (
         <DeleteModal
           item={deleteItem}
-          onClose={() => {
-            setDeleteItem(null)
-            setDeleteParentId(null)
-          }}
+          onClose={() => setDeleteItem(null)}
           onConfirmDelete={handleConfirmDelete}
         />
       )}

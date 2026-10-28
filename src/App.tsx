@@ -25,6 +25,9 @@ function App() {
         return
       }
       processManager.spawn('launchd', 'launchd', [])
+      // El escritorio ES /Users/guest/Desktop: hay que leerlo del VFS (y migrar
+      // el que haya quedado en localStorage) antes de mostrarlo.
+      await useDesktopStore.getState().initDesktop()
       setBootLoaded(true)
     }
     init()

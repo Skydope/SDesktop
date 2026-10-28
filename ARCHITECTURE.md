@@ -12,9 +12,11 @@ Cómo está armado SDesktop **hoy**, no cómo debería estar. Lo que está mal e
 2. Muestra `BootScreen`, salvo que `skipBoot` esté persistido.
 3. Monta `<MenuBar /> <Desktop /> <Dock /> <ToastContainer />`.
 
-## Los dos estados
+## Una sola fuente de verdad
 
-Esta es la decisión estructural más importante del proyecto, y es la que hay que revertir.
+El VFS **es** el estado persistido. El escritorio es `/Users/guest/Desktop`, y el store de
+Zustand quedó solo para estado de UI. Antes eran dos árboles incompatibles que modelaban lo
+mismo, y `mkdir` en la terminal no aparecía en el escritorio.
 
 ### `src/store/desktopStore.ts` — estado de UI
 
@@ -24,7 +26,7 @@ Zustand con middleware `persist` sobre `localStorage`, clave `desktopState`.
 {
   wallpaper: string
   theme: 'light' | 'dark'                // se persiste pero NADA lo aplica al DOM
-  items: (ShortcutItem | FolderItem)[]   // árbol recursivo
+  items: (ShortcutItem | FolderItem)[]   // VISTA DERIVADA del VFS, no se persiste
   openWindows: WindowState[]
   isStartMenuOpen: boolean
   userProfile: { name, avatar }
@@ -32,11 +34,33 @@ Zustand con middleware `persist` sobre `localStorage`, clave `desktopState`.
 }
 ```
 
-`partialize` guarda todo **menos `openWindows` e `isStartMenuOpen`**: las ventanas no sobreviven un reload, a propósito.
+`partialize` guarda **solo** `wallpaper`, `theme`, `userProfile` y `skipBoot`. `items` no se
+persiste: se relee del VFS en cada arranque. Las ventanas tampoco sobreviven un reload, a
+propósito.
 
-> **No tiene `version` ni `migrate`.** El próximo cambio de shape del store va a corromper en silencio el estado guardado de cualquiera que ya haya usado la app. Pendiente.
+> **No tiene `version` ni `migrate`.** El próximo cambio de shape del store va a corromper en silencio lo poco que queda persistido. Pendiente.
 
-**El acoplamiento caro:** `WindowState.content` es una **copia completa** del `FolderItem`. Por eso `addItemToFolder`, `updateItem` y `deleteItem` tienen cada uno un loop que recorre `openWindows` resincronizando copias. Es la mayor fuente de complejidad del store, y desaparece sola si se unifica con el VFS.
+**`src/store/desktopItems.ts` es el puente.** Proyecta nodos del VFS a la forma
+`ShortcutItem | FolderItem` que renderean los componentes, y traduce las mutaciones al revés:
+
+| Concepto del escritorio | En el VFS |
+|---|---|
+| `item.id` | el path absoluto del nodo |
+| `item.title` | `node.name` — renombrar **es** un `move` |
+| acceso directo | archivo cuyo contenido es la URL, como un `.webloc` |
+| carpeta | carpeta |
+| `item.icon` | `node.metadata.icon` |
+
+Como el nombre del archivo es el título, dos items con el mismo nombre se desambiguan con
+" 2", " 3"… igual que el Finder (`uniquePath`).
+
+**Un solo lugar de resincronización:** `refreshItems()` relee el escritorio y re-apunta el
+`content` de las ventanas de carpeta abiertas. Antes cada acción mutadora tenía su propio
+loop porque `items` era un árbol aparte.
+
+**El VFS avisa cuando cambia.** `vfs.subscribe(listener)` notifica en cada mutación; el store
+y el Finder están suscritos. Por eso un `mkdir` en la terminal aparece en el escritorio y en
+el Finder al instante, sin que ningún comando tenga que saber quién lo está mirando.
 
 ### `src/vfs/` — el filesystem
 
@@ -126,19 +150,16 @@ tokens.css  →  base.css  →  animations.css  →  os-components.css
 
 ## Decisiones pendientes
 
-### 1. Unificar los dos filesystems
+### 1. Migración del `localStorage` viejo: sacarla en algún momento
 
-El cambio más grande, y el que más fidelidad compra.
+`migrateLegacyItems()` en `src/store/desktopItems.ts` sube al VFS el escritorio que haya
+quedado guardado por la versión anterior a la unificación. Corre una sola vez (solo si el
+escritorio del VFS está vacío) y se puede borrar cuando ya no queden instalaciones viejas.
 
-**Propuesta:** el VFS pasa a ser la única fuente de verdad. `/Users/guest/Desktop` *es* el escritorio, y `Desktop.tsx` lo lee con `vfs.readdir()`. El store queda solo para UI: ventanas, tema, perfil, wallpaper.
-
-Qué arregla de un saque:
-
-- `mkdir` en la terminal aparece en el escritorio, y al revés.
-- Desaparecen los loops de resincronización de `WindowState.content`.
-- Desaparece el árbol recursivo `items` y sus 5 helpers.
-
-Qué cuesta: toca `Desktop`, `DesktopItem`, `StartMenu`, `Dock`, los 6 modales y el store. Necesita una ruta de migración para el `localStorage` que los usuarios ya tengan.
+El snapshot del `localStorage` se toma **al cargar el módulo**, no cuando corre la migración:
+el middleware `persist` reescribe la clave `desktopState` en cuanto el estado cambia, y como
+`items` ya no está en `partialize`, esa primera escritura se llevaría puesto el escritorio
+viejo.
 
 ### 2. Atajos de teclado reales
 
