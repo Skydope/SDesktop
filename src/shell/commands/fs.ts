@@ -1,5 +1,30 @@
-import type { Command, CommandContext } from '../engine'
+import type { Command } from '../engine'
 import { formatPermissions } from '../../vfs/types'
+
+const HOME = '/Users/guest'
+
+/**
+ * Resuelve un path que escribio el usuario a absoluto, contra el PWD del
+ * contexto. El VFS solo acepta absolutos, asi que TODO comando que reciba un
+ * path tiene que pasar por aca. Soporta '.', '..' y '~'.
+ */
+export const resolveArg = (path: string, pwd: string): string => {
+  const expanded =
+    path === '~' || path.startsWith('~/') ? HOME + path.slice(1) : path
+  const absolute = expanded.startsWith('/') ? expanded : pwd + '/' + expanded
+
+  const parts: string[] = []
+  for (const segment of absolute.split('/')) {
+    if (segment === '' || segment === '.') continue
+    if (segment === '..') {
+      parts.pop()
+      continue
+    }
+    parts.push(segment)
+  }
+
+  return '/' + parts.join('/')
+}
 
 export const lsCommand: Command = {
   name: 'ls',
@@ -23,7 +48,7 @@ export const lsCommand: Command = {
       }
     }
 
-    const entries = await ctx.vfs.readdir(paths[0] === '-' ? ctx.cwd : paths[0])
+    const entries = await ctx.vfs.readdir(resolveArg(paths[0], ctx.env.PWD))
 
     if (longFormat) {
       const lines = entries
@@ -68,11 +93,7 @@ export const cdCommand: Command = {
       return ''
     }
 
-    let targetPath = args[0]
-    if (!targetPath.startsWith('/')) {
-      targetPath = ctx.env.PWD + '/' + targetPath
-    }
-    targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+    const targetPath = resolveArg(args[0], ctx.env.PWD)
 
     const exists = await ctx.vfs.exists(targetPath)
     if (!exists) {
@@ -106,17 +127,15 @@ export const mkdirCommand: Command = {
     const paths = args.filter(a => !a.startsWith('-'))
 
     for (const path of paths) {
-      let targetPath = path
-      if (!targetPath.startsWith('/')) {
-        targetPath = ctx.env.PWD + '/' + targetPath
-      }
-      targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+      const targetPath = resolveArg(path, ctx.env.PWD)
 
       try {
         await ctx.vfs.mkdir(targetPath, parents)
       } catch (err) {
         if (err instanceof Error) {
-          throw new Error(`mkdir: cannot create directory '${path}': ${err.message}`)
+          throw new Error(`mkdir: cannot create directory '${path}': ${err.message}`, {
+            cause: err,
+          })
         }
       }
     }
@@ -134,11 +153,7 @@ export const rmCommand: Command = {
     const paths = args.filter(a => !a.startsWith('-'))
 
     for (const path of paths) {
-      let targetPath = path
-      if (!targetPath.startsWith('/')) {
-        targetPath = ctx.env.PWD + '/' + targetPath
-      }
-      targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+      const targetPath = resolveArg(path, ctx.env.PWD)
 
       const exists = await ctx.vfs.exists(targetPath)
       if (!exists) {
@@ -172,11 +187,7 @@ export const catCommand: Command = {
 
     const outputs: string[] = []
     for (const path of args) {
-      let targetPath = path
-      if (!targetPath.startsWith('/')) {
-        targetPath = ctx.env.PWD + '/' + targetPath
-      }
-      targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+      const targetPath = resolveArg(path, ctx.env.PWD)
 
       const exists = await ctx.vfs.exists(targetPath)
       if (!exists) {
@@ -228,11 +239,7 @@ export const touchCommand: Command = {
     }
 
     for (const path of args) {
-      let targetPath = path
-      if (!targetPath.startsWith('/')) {
-        targetPath = ctx.env.PWD + '/' + targetPath
-      }
-      targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+      const targetPath = resolveArg(path, ctx.env.PWD)
 
       await ctx.vfs.touch(targetPath)
     }
@@ -257,22 +264,17 @@ export const cpCommand: Command = {
     const dest = paths[paths.length - 1]
 
     for (const src of srcs) {
-      let srcPath = src
-      let destPath = dest
-
-      if (!srcPath.startsWith('/')) {
-        srcPath = ctx.env.PWD + '/' + srcPath
-      }
-      srcPath = srcPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
-
-      if (!destPath.startsWith('/')) {
-        destPath = ctx.env.PWD + '/' + destPath
-      }
-      destPath = destPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+      const srcPath = resolveArg(src, ctx.env.PWD)
+      const destPath = resolveArg(dest, ctx.env.PWD)
 
       const exists = await ctx.vfs.exists(srcPath)
       if (!exists) {
         throw new Error(`cp: ${src}: No such file or directory`)
+      }
+
+      const srcStat = await ctx.vfs.stat(srcPath)
+      if (srcStat.type === 'folder' && !recursive) {
+        throw new Error(`cp: ${src}: is a directory (not copied)`)
       }
 
       await ctx.vfs.copy(srcPath, destPath)
@@ -295,18 +297,8 @@ export const mvCommand: Command = {
     const dest = args[args.length - 1]
 
     for (const src of srcs) {
-      let srcPath = src
-      let destPath = dest
-
-      if (!srcPath.startsWith('/')) {
-        srcPath = ctx.env.PWD + '/' + srcPath
-      }
-      srcPath = srcPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
-
-      if (!destPath.startsWith('/')) {
-        destPath = ctx.env.PWD + '/' + destPath
-      }
-      destPath = destPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+      const srcPath = resolveArg(src, ctx.env.PWD)
+      const destPath = resolveArg(dest, ctx.env.PWD)
 
       const exists = await ctx.vfs.exists(srcPath)
       if (!exists) {
@@ -333,17 +325,20 @@ export const dateCommand: Command = {
   usage: 'date [+format]',
   handler: async (args) => {
     const now = new Date()
-    if (args[0]?.startsWith('+')) {
-      const format = args[0].slice(1)
-      return now.toLocaleString('en-US', {
-        '%Y': now.getFullYear(),
+    const fmt = args[0]
+
+    if (fmt?.startsWith('+')) {
+      const tokens: Record<string, string> = {
+        '%Y': String(now.getFullYear()),
         '%m': String(now.getMonth() + 1).padStart(2, '0'),
         '%d': String(now.getDate()).padStart(2, '0'),
         '%H': String(now.getHours()).padStart(2, '0'),
         '%M': String(now.getMinutes()).padStart(2, '0'),
         '%S': String(now.getSeconds()).padStart(2, '0'),
-      }[format] || now.toLocaleString())
+      }
+      return fmt.slice(1).replace(/%[YmdHMS]/g, t => tokens[t])
     }
+
     return now.toLocaleString()
   },
 }

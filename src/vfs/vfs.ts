@@ -1,13 +1,5 @@
-import {
-  VFSNode,
-  VFSTree,
-  VFSNodeType,
-  VFSStats,
-  createFileNode,
-  createFolderNode,
-  createSymlinkNode,
-  VFSPermissions,
-} from './types';
+import type { VFSNode, VFSTree, VFSStats, VFSPermissions } from './types';
+import { createFileNode, createFolderNode } from './types';
 import { vfsStorage } from './storage';
 
 export class VirtualFilesystem {
@@ -219,8 +211,10 @@ export class VirtualFilesystem {
       throw new Error(`Is a directory: ${path}`);
     }
 
+    // accessedAt se actualiza solo en memoria, igual que readdir: persistir el
+    // arbol completo en cada lectura costaba una escritura O(arbol) por `cat`.
+    // Es el mismo trade-off que `noatime` en un filesystem real.
     node.accessedAt = Date.now();
-    await this._persist();
 
     return node.content || '';
   }
@@ -311,10 +305,8 @@ export class VirtualFilesystem {
       throw new Error(`Destination already exists: ${dst}`);
     }
 
-    const srcParent = this.getParentPath(srcResolved);
-    const srcParentNode = this.tree[srcParent];
-    if (srcParentNode) {
-      srcParentNode.children = srcParentNode.children?.filter(id => id !== srcResolved) || [];
+    if (dstResolved.startsWith(srcResolved + '/')) {
+      throw new Error(`Cannot move ${src} into a subdirectory of itself`);
     }
 
     const dstParent = this.getParentPath(dstResolved);
@@ -323,75 +315,86 @@ export class VirtualFilesystem {
       throw new Error(`Destination parent does not exist: ${dstParent}`);
     }
 
-    const newNode = { ...node, id: dstResolved, name: dst.split('/').pop()! };
-    this.tree[dstResolved] = newNode;
+    const srcParent = this.getParentPath(srcResolved);
+    const srcParentNode = this.tree[srcParent];
+    if (srcParentNode) {
+      srcParentNode.children = srcParentNode.children?.filter(id => id !== srcResolved) || [];
+    }
+
     dstParentNode.children = dstParentNode.children || [];
     dstParentNode.children.push(dstResolved);
 
-    if (node.type === 'folder' && node.children) {
-      const prefix = srcResolved + '/';
-      for (const childId of node.children) {
-        if (childId.startsWith(prefix)) {
-          const newChildId = childId.replace(prefix, dstResolved + '/');
-          const childNode = this.tree[childId];
-          if (childNode) {
-            delete this.tree[childId];
-            const movedChild = { ...childNode, id: newChildId };
-            this.tree[newChildId] = movedChild;
-          }
-        }
-      }
-    }
+    this.remapSubtree(srcResolved, dstResolved, 'move');
 
-    delete this.tree[srcResolved];
     await this._persist();
   }
 
   async copy(src: string, dst: string): Promise<void> {
     this.ensureInitialized();
     const srcResolved = this.resolvePath(src);
-    const node = this.tree[srcResolved];
+    const dstResolved = this.resolvePath(dst);
 
+    const node = this.tree[srcResolved];
     if (!node) {
       throw new Error(`No such path: ${src}`);
     }
 
-    if (this.tree[dst]) {
+    if (this.tree[dstResolved]) {
       throw new Error(`Destination already exists: ${dst}`);
     }
 
-    const dstParent = this.getParentPath(dst);
+    if (dstResolved.startsWith(srcResolved + '/')) {
+      throw new Error(`Cannot copy ${src} into a subdirectory of itself`);
+    }
+
+    const dstParent = this.getParentPath(dstResolved);
     const dstParentNode = this.tree[dstParent];
     if (!dstParentNode) {
       throw new Error(`Destination parent does not exist: ${dstParent}`);
     }
 
-    const copy = (n: VFSNode, newId: string, newName: string): VFSNode => ({
-      ...n,
-      id: newId,
-      name: newName,
-      createdAt: Date.now(),
-      modifiedAt: Date.now(),
-      accessedAt: Date.now(),
-      children: n.children ? [...n.children] : undefined,
-    });
-
-    this.tree[dst] = copy(node, dst, dst.split('/').pop()!);
     dstParentNode.children = dstParentNode.children || [];
-    dstParentNode.children.push(dst);
+    dstParentNode.children.push(dstResolved);
 
-    if (node.type === 'folder' && node.children) {
-      for (const childId of node.children) {
-        const childNode = this.tree[childId];
-        if (childNode) {
-          const suffix = childId.replace(srcResolved, '');
-          const newChildId = dst + suffix;
-          this.tree[newChildId] = copy(childNode, newChildId, childNode.name);
-        }
-      }
-    }
+    this.remapSubtree(srcResolved, dstResolved, 'copy');
 
     await this._persist();
+  }
+
+  /**
+   * Reubica el subarbol que cuelga de `fromRoot` para que cuelgue de `toRoot`.
+   * Recorre todo el arbol en vez de `node.children` porque los paths SON las
+   * claves: los nietos y los arrays `children` que los apuntan tambien hay que
+   * reescribirlos, si no quedan huerfanos en su path viejo.
+   */
+  private remapSubtree(fromRoot: string, toRoot: string, mode: 'move' | 'copy'): void {
+    const prefix = fromRoot + '/';
+    const oldPaths = Object.keys(this.tree).filter(
+      p => p === fromRoot || p.startsWith(prefix)
+    );
+    const now = Date.now();
+    const rebase = (p: string) => toRoot + p.slice(fromRoot.length);
+
+    for (const oldPath of oldPaths) {
+      const newPath = rebase(oldPath);
+      const node = this.tree[oldPath];
+      this.tree[newPath] = {
+        ...node,
+        id: newPath,
+        name: newPath.split('/').pop() || newPath,
+        children: node.children?.map(rebase),
+        ...(mode === 'copy'
+          ? { createdAt: now, modifiedAt: now, accessedAt: now }
+          : {}),
+      };
+    }
+
+    if (mode === 'move') {
+      const newPaths = new Set(oldPaths.map(rebase));
+      for (const oldPath of oldPaths) {
+        if (!newPaths.has(oldPath)) delete this.tree[oldPath];
+      }
+    }
   }
 
   async chmod(path: string, permissions: VFSPermissions): Promise<void> {

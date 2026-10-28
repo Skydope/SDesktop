@@ -3,12 +3,10 @@ import { processManager } from '../process'
 import { useDesktopStore } from '../store/desktopStore'
 
 export interface CommandContext {
-  cwd: string
   env: Record<string, string>
   vfs: typeof vfs
   processManager: typeof processManager
   openApp: (appId: string) => void
-  openWindow: (window: { id: string; title: string; icon: string; type: string }) => void
   closeWindow: (id: string) => void
   setTheme: (theme: 'light' | 'dark') => void
   focusWindow: (id: string) => void
@@ -132,7 +130,6 @@ export const createCommandContext = (): CommandContext => {
   const store = useDesktopStore.getState()
 
   return {
-    cwd: '/Users/guest',
     env: {
       HOME: '/Users/guest',
       USER: 'guest',
@@ -143,7 +140,6 @@ export const createCommandContext = (): CommandContext => {
     vfs,
     processManager,
     openApp: (appId: string) => store.openApp(appId),
-    openWindow: (window) => store.openWindow(window as any),
     closeWindow: (id: string) => store.closeWindow(id),
     setTheme: (theme) => store.setTheme(theme),
     focusWindow: (id: string) => store.setActiveWindow(id),

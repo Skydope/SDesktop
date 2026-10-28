@@ -1,4 +1,4 @@
-import type { Command, CommandContext } from '../engine'
+import type { Command } from '../engine'
 
 export const psCommand: Command = {
   name: 'ps',

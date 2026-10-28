@@ -1,4 +1,4 @@
-import { CommandEngine, createCommandContext } from './engine'
+import { CommandEngine } from './engine'
 import { lsCommand, cdCommand, pwdCommand, mkdirCommand, rmCommand, catCommand, echoCommand, touchCommand, cpCommand, mvCommand, whoamiCommand, dateCommand, envCommand, exportCommand, clearCommand, unameCommand, hostnameCommand, historyCommand } from './commands/fs'
 import { psCommand, killCommand } from './commands/proc'
 import { openCommand, closeCommand, themeCommand, windowsCommand, focusCommand, inspectCommand, helpCommand } from './commands/system'

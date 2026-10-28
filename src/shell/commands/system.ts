@@ -1,4 +1,4 @@
-import type { Command, CommandContext } from '../engine'
+import type { Command } from '../engine'
 import { APP_REGISTRY } from '../../types/desktop'
 
 export const openCommand: Command = {
@@ -144,10 +144,9 @@ export const helpCommand: Command = {
   name: 'help',
   description: 'Show available commands',
   usage: 'help [command]',
-  handler: async (args, ctx) => {
+  handler: async (args) => {
     if (args.length > 0) {
       const cmdName = args[0]
-      const cmd = ctx.vfs.getTree ? ctx : null
       return `Help for ${cmdName}: coming soon`
     }
 
