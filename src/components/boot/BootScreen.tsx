@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { useDesktopStore } from '../../store/desktopStore'
 
 interface BootScreenProps {
   onComplete: () => void
@@ -83,6 +82,7 @@ const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
         </div>
 
         <h1 className="os-boot__title">SDesktop</h1>
+        
 
         <div className="os-boot__progress-container">
           <div className="os-boot__progress-bar">
@@ -97,7 +97,7 @@ const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
               : 'Ready'}
           </span>
         </div>
-
+         <h2 className="os-boot__stage">By Skydope</h2>     
         <p className="os-boot__hint">
           Hold Shift during startup to skip boot sequence
         </p>

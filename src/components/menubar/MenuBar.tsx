@@ -17,7 +17,7 @@ interface Menu {
 }
 
 const AppleMenuItems: MenuItem[] = [
-  { label: 'About SDesktop', action: () => {} },
+  { label: '🐈 About SDesktop', action: () => {} },
   { label: '', divider: true },
   { label: 'System Preferences...', action: () => useDesktopStore.getState().openApp('preferences') },
   { label: 'System Settings...', action: () => useDesktopStore.getState().openApp('preferences') },
@@ -28,17 +28,7 @@ const AppleMenuItems: MenuItem[] = [
   { label: '', divider: true },
   { label: 'Lock Screen', shortcut: '⌃⌘Q' },
   { label: 'Log Out...', shortcut: '⇧⌘Q' },
-]
-
-const FinderMenuItems: MenuItem[] = [
-  { label: 'About Finder', action: () => {} },
-  { label: '', divider: true },
-  { label: 'Settings...', action: () => useDesktopStore.getState().openApp('preferences') },
-  { label: '', divider: true },
-  { label: 'Empty Trash...' },
-  { label: '', divider: true },
-  { label: 'Hide Finder', shortcut: '⌘H' },
-  { label: 'Hide Others', shortcut: '⌥⌘H' },
+  { label: 'SDesktop by Skydope', action: () => {} },
 ]
 
 const FileMenuItems: MenuItem[] = [
@@ -87,9 +77,8 @@ const MenuBar: React.FC = () => {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [time, setTime] = useState(new Date())
   const menuRef = useRef<HTMLDivElement>(null)
-  const activeWindow = useDesktopStore(s => s.openWindows.find(w => w.isActive))
   const appMenus: Menu[] = [
-    { id: 'apple', label: '🍎', items: AppleMenuItems },
+    { id: 'apple', label: '🐈‍', items: AppleMenuItems },
     { id: 'file', label: 'File', items: FileMenuItems },
     { id: 'edit', label: 'Edit', items: EditMenuItems },
     { id: 'view', label: 'View', items: ViewMenuItems },

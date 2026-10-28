@@ -1,4 +1,4 @@
-import type { ProcessInfo, ProcessStatus, ProcessUpdate } from './types';
+import type { ProcessInfo, ProcessUpdate } from './types';
 
 export class ProcessManager {
   private processes: Map<number, ProcessInfo> = new Map();
@@ -29,10 +29,6 @@ export class ProcessManager {
     };
 
     this.processes.set(pid, proc);
-
-    if (options.ppid && this.processes.has(options.ppid)) {
-      const parent = this.processes.get(options.ppid)!;
-    }
 
     this.notify();
 

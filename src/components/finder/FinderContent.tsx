@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Folder,
   File,
@@ -65,6 +65,12 @@ interface FinderContentProps {
   initialPath?: string
 }
 
+const compareEntries = (a: VFSNode, b: VFSNode): number => {
+  if (a.type === 'folder' && b.type !== 'folder') return -1
+  if (a.type !== 'folder' && b.type === 'folder') return 1
+  return a.name.localeCompare(b.name)
+}
+
 const FinderContent: React.FC<FinderContentProps> = ({ initialPath = '/Users/guest' }) => {
   const [currentPath, setCurrentPath] = useState(initialPath)
   const [entries, setEntries] = useState<VFSNode[]>([])
@@ -73,25 +79,28 @@ const FinderContent: React.FC<FinderContentProps> = ({ initialPath = '/Users/gue
   const [searchQuery, setSearchQuery] = useState('')
   const [pathHistory, setPathHistory] = useState<string[]>([initialPath])
 
-  const loadDirectory = useCallback(async (path: string) => {
-    setLoading(true)
-    try {
-      const nodes = await vfs.readdir(path)
-      const sorted = nodes.sort((a, b) => {
-        if (a.type === 'folder' && b.type !== 'folder') return -1
-        if (a.type !== 'folder' && b.type === 'folder') return 1
-        return a.name.localeCompare(b.name)
-      })
-      setEntries(sorted)
-    } catch {
-      setEntries([])
-    }
-    setLoading(false)
-  }, [])
-
   useEffect(() => {
-    loadDirectory(currentPath)
-  }, [currentPath, loadDirectory])
+    let cancelled = false
+
+    const load = async () => {
+      let sorted: VFSNode[]
+      try {
+        sorted = (await vfs.readdir(currentPath)).sort(compareEntries)
+      } catch {
+        sorted = []
+      }
+      // Navegar rapido puede resolver dos readdir fuera de orden; el ultimo
+      // path pedido es el que manda.
+      if (cancelled) return
+      setEntries(sorted)
+      setLoading(false)
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [currentPath])
 
   const navigateTo = (path: string) => {
     setPathHistory(prev => [...prev, path])
@@ -136,11 +145,6 @@ const FinderContent: React.FC<FinderContentProps> = ({ initialPath = '/Users/gue
   const handleItemClick = async (node: VFSNode) => {
     if (node.type === 'folder') {
       navigateTo(node.id)
-    }
-  }
-
-  const handleItemDoubleClick = (node: VFSNode) => {
-    if (node.type === 'file') {
     }
   }
 
@@ -223,7 +227,6 @@ const FinderContent: React.FC<FinderContentProps> = ({ initialPath = '/Users/gue
                   key={entry.id}
                   className="os-finder__item"
                   onClick={() => handleItemClick(entry)}
-                  onDoubleClick={() => handleItemDoubleClick(entry)}
                   title={`${entry.name}${entry.type === 'folder' ? '' : ` — ${formatSize(entry.size)}`}`}
                 >
                   <div className="os-finder__item-icon">
@@ -249,7 +252,6 @@ const FinderContent: React.FC<FinderContentProps> = ({ initialPath = '/Users/gue
                   key={entry.id}
                   className="os-finder__list-row"
                   onClick={() => handleItemClick(entry)}
-                  onDoubleClick={() => handleItemDoubleClick(entry)}
                 >
                   <span className="os-finder__list-col os-finder__list-col--name">
                     <IconComponent size={16} />

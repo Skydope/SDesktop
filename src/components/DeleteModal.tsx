@@ -49,7 +49,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ item, onClose, onConfirmDelet
     const isExpanded = expandedFolders.has(folderItem.id)
 
     return (
-      <div key={folderItem.id} className="w-full">
+      <div key={folderItem.id}>
         <div
           className="os-tree-item"
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -76,10 +76,9 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ item, onClose, onConfirmDelet
     )
   }
 
-  let contentCount
-  if (hasItems) {
-    contentCount = countContents(item as FolderItem)
-  }
+  const contentCount = hasItems
+    ? countContents(item as FolderItem)
+    : { folders: 0, shortcuts: 0 }
 
   return (
     <div className="os-modal-overlay" onClick={onClose}>

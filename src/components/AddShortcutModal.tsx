@@ -32,7 +32,7 @@ const AddShortcutModal: React.FC<AddShortcutModalProps> = ({ onClose, onSave }) 
       const text = await navigator.clipboard.readText()
       try {
         const url = new URL(text)
-        setShortcut(prev => ({ ...prev, url }))
+        setShortcut(prev => ({ ...prev, url: url.href }))
         if (!shortcut.title) {
           const domain = url.hostname.replace('www.', '')
           const capitalizedDomain = domain.charAt(0).toUpperCase() + domain.slice(1)

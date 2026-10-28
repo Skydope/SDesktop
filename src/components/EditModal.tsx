@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { X, Link, Folder } from 'lucide-react'
 import { ShortcutItem, FolderItem } from '../types/desktop'
 import { getFaviconUrl } from '../utils/favicon'
@@ -10,26 +10,15 @@ interface EditModalProps {
 }
 
 const EditModal: React.FC<EditModalProps> = ({ item, onClose, onSave }) => {
-  const [title, setTitle] = useState('')
-  const [url, setUrl] = useState('')
-  const [icon, setIcon] = useState('')
-  const [customIcon, setCustomIcon] = useState(false)
-  const [iconPreview, setIconPreview] = useState('')
-
   const isShortcut = item && 'url' in item
 
-  useEffect(() => {
-    if (item) {
-      const nextTitle = item.title
-      const nextIcon = item.icon
-      setTitle(nextTitle)
-      setIcon(nextIcon)
-      setIconPreview(nextIcon)
-      if (isShortcut) {
-        setUrl((item as ShortcutItem).url)
-      }
-    }
-  }, [item, isShortcut])
+  // El padre monta este modal con key={item.id}, asi que inicializar desde la
+  // prop alcanza: no hace falta un effect que sincronice prop -> state.
+  const [title, setTitle] = useState(item?.title ?? '')
+  const [url, setUrl] = useState(isShortcut ? (item as ShortcutItem).url : '')
+  const [icon, setIcon] = useState(item?.icon ?? '')
+  const [customIcon, setCustomIcon] = useState(false)
+  const [iconPreview, setIconPreview] = useState(item?.icon ?? '')
 
   const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

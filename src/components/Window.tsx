@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState } from 'react'
 import {
   FolderPlus,
   Link,
@@ -7,10 +7,7 @@ import {
   Folder,
   ChevronDown,
   Globe,
-  Terminal,
-  FileText,
   Settings,
-  Calculator,
 } from 'lucide-react'
 import { FolderItem, ShortcutItem, WindowState, APP_REGISTRY } from '../types/desktop'
 import DesktopItem from './DesktopItem'
@@ -18,9 +15,12 @@ import AddShortcutModal from './AddShortcutModal'
 import { useWindowManagement } from '../hooks/useWindowManagement'
 import TerminalComponent from './terminal/Terminal'
 import FinderContent from './finder/FinderContent'
+import { ICON_MAP } from './appIcons'
+import { ErrorBoundary } from './ErrorBoundary'
 
 interface WindowProps {
   window: WindowState
+  index?: number
   onClose: (id: string) => void
   onMinimize: (id: string) => void
   onMaximize: (id: string) => void
@@ -35,15 +35,6 @@ interface WindowProps {
 interface PathItem {
   id: string
   title: string
-}
-
-const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
-  terminal: Terminal,
-  'file-text': FileText,
-  settings: Settings,
-  calculator: Calculator,
-  folder: Folder,
-  globe: Globe,
 }
 
 const WindowContent: React.FC<{ appId?: string; type: string }> = ({ appId, type }) => {
@@ -111,13 +102,6 @@ const FolderContent: React.FC<{
   }
 
   const currentFolder = findFolderByPath(win.content, navigationPath)
-
-  useEffect(() => {
-    if (navigationPath[0]?.id !== win.id) {
-      setNavigationPath([{ id: win.id, title: win.title }])
-      setExpandedFolders(new Set([win.id]))
-    }
-  }, [win.id, win.title, navigationPath])
 
   const handleAddFolder = () => {
     if (onAddItemToFolder) {
@@ -201,7 +185,7 @@ const FolderContent: React.FC<{
     const itemPath = [...currentPath, { id: item.id, title: item.title }]
 
     return (
-      <div key={item.id} className="w-full">
+      <div key={item.id}>
         <div
           className={`os-tree-item ${isActive ? 'os-tree-item--active' : ''}`}
           style={{ paddingLeft: `${(depth * 12) + 8}px` }}
@@ -350,6 +334,7 @@ const FolderContent: React.FC<{
 
 const Window: React.FC<WindowProps> = ({
   window: win,
+  index = 0,
   onClose,
   onMinimize,
   onMaximize,
@@ -360,10 +345,9 @@ const Window: React.FC<WindowProps> = ({
   onViewProperties,
   onBringToFront,
 }) => {
-  const windowCount = win.type === 'app' ? 0 : (win as any)._windowIndex || 0
-  const staggerOffset = windowCount * 24
+  const staggerOffset = index * 24
 
-  const { position, size, isDragging, isMaximized: hookMaximized, onDragStart, onResizeStart } = useWindowManagement({
+  const { position, size, isDragging, onDragStart, onResizeStart } = useWindowManagement({
     id: win.id,
     initialPosition: { x: 100 + staggerOffset, y: 60 + staggerOffset },
     initialSize: { width: win.type === 'app' ? 700 : 780, height: win.type === 'app' ? 480 : 520 },
@@ -437,7 +421,9 @@ const Window: React.FC<WindowProps> = ({
           onViewProperties={onViewProperties}
         />
       ) : (
-        <WindowContent appId={win.appId} type={win.type} />
+        <ErrorBoundary label={win.title}>
+          <WindowContent appId={win.appId} type={win.type} />
+        </ErrorBoundary>
       )}
 
       {!isFullscreen && (

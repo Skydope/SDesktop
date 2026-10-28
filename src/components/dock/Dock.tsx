@@ -2,24 +2,13 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useDesktopStore } from '../../store/desktopStore'
 import { APP_REGISTRY, AppId, WindowState } from '../../types/desktop'
 import {
-  Terminal,
   Folder,
-  FileText,
-  Settings,
-  Calculator,
   Trash2,
   X,
   Maximize2,
   Minimize2,
 } from 'lucide-react'
-
-const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
-  terminal: Terminal,
-  'file-text': FileText,
-  settings: Settings,
-  calculator: Calculator,
-  folder: Folder,
-}
+import { ICON_MAP } from '../appIcons'
 
 interface DockItemProps {
   appId: AppId | 'trash'
@@ -73,7 +62,6 @@ const Dock: React.FC = () => {
   const openWindows = useDesktopStore(s => s.openWindows)
   const openApp = useDesktopStore(s => s.openApp)
   const closeWindow = useDesktopStore(s => s.closeWindow)
-  const minimizeWindow = useDesktopStore(s => s.minimizeWindow)
   const maximizeWindow = useDesktopStore(s => s.maximizeWindow)
   const setActiveWindow = useDesktopStore(s => s.setActiveWindow)
   const toggleStartMenu = useDesktopStore(s => s.toggleStartMenu)
@@ -169,34 +157,37 @@ const Dock: React.FC = () => {
 
         <div className="os-dock__windows">
           {openWindows.map((win) => (
-            <button
+            <div
               key={win.id}
               className={`os-dock__window ${win.isActive && !win.isMinimized ? 'os-dock__window--active' : ''}`}
-              onClick={() => handleWindowClick(win)}
-              title={win.isMinimized ? 'Restaurar' : win.title}
             >
-              {win.icon ? (
-                <img src={win.icon} alt="" className="os-dock__window-icon" />
-              ) : (
-                <Folder className="os-dock__window-icon" />
-              )}
-              <span className="os-dock__window-title">{win.title}</span>
-              {win.isMinimized ? (
-                <Maximize2 className="os-dock__window-action" />
-              ) : (
-                <Minimize2 className="os-dock__window-action" />
-              )}
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  closeWindow(win.id)
-                }}
+                type="button"
+                className="os-dock__window-main"
+                onClick={() => handleWindowClick(win)}
+                title={win.isMinimized ? 'Restaurar' : win.title}
+              >
+                {win.icon ? (
+                  <img src={win.icon} alt="" className="os-dock__window-icon" />
+                ) : (
+                  <Folder className="os-dock__window-icon" />
+                )}
+                <span className="os-dock__window-title">{win.title}</span>
+                {win.isMinimized ? (
+                  <Maximize2 className="os-dock__window-action" />
+                ) : (
+                  <Minimize2 className="os-dock__window-action" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => closeWindow(win.id)}
                 className="os-dock__window-close"
-                aria-label="Cerrar"
+                aria-label={`Cerrar ${win.title}`}
               >
                 <X className="os-dock__window-close-icon" />
               </button>
-            </button>
+            </div>
           ))}
         </div>
 

@@ -25,6 +25,15 @@ const Terminal: React.FC<TerminalProps> = () => {
     xterm.write(text.replace(/\n/g, '\r\n'))
   }, [])
 
+  const writePrompt = useCallback(() => {
+    const xterm = xtermRef.current
+    const ctx = contextRef.current
+    if (!xterm) return
+
+    const prompt = `\x1b[1;34mguest@sdesktop\x1b[0m:\x1b[1;32m${ctx.env.PWD}\x1b[0m$ `
+    xterm.write(prompt)
+  }, [])
+
   const handleInput = useCallback(async (data: string) => {
     const xterm = xtermRef.current
     const shell = shellRef.current
@@ -114,16 +123,7 @@ const Terminal: React.FC<TerminalProps> = () => {
       currentInputRef.current += char
       xterm.write(char)
     }
-  }, [writeOutput])
-
-  const writePrompt = useCallback(() => {
-    const xterm = xtermRef.current
-    const ctx = contextRef.current
-    if (!xterm) return
-
-    const prompt = `\x1b[1;34mguest@sdesktop\x1b[0m:\x1b[1;32m${ctx.env.PWD}\x1b[0m$ `
-    xterm.write(prompt)
-  }, [])
+  }, [writeOutput, writePrompt])
 
   useEffect(() => {
     if (!terminalRef.current || xtermRef.current) return
