@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ShortcutItem, FolderItem, AppId } from '../types/desktop'
+import { ShortcutItem, FolderItem } from '../types/desktop'
 import { useDesktopStore } from '../store/desktopStore'
 import { getFaviconUrl } from '../utils/favicon'
 import DesktopItem from './DesktopItem'
@@ -8,6 +8,8 @@ import Window from './Window'
 import EditModal from './EditModal'
 import DeleteModal from './DeleteModal'
 import PropertiesModal from './PropertiesModal'
+import { ContextMenu, getDesktopMenuItems } from './context-menu'
+import type { ContextMenuItem, ContextMenuPosition } from './context-menu'
 
 const Desktop: React.FC = () => {
   const {
@@ -25,7 +27,6 @@ const Desktop: React.FC = () => {
     minimizeWindow,
     maximizeWindow,
     setActiveWindow,
-    toggleStartMenu,
     clearAllData,
     findFolderById,
     getAllItems,
@@ -36,6 +37,11 @@ const Desktop: React.FC = () => {
   const [editParentId, setEditParentId] = useState<string | null>(null)
   const [deleteItem, setDeleteItem] = useState<ShortcutItem | FolderItem | null>(null)
   const [deleteParentId, setDeleteParentId] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean
+    position: ContextMenuPosition
+    items: ContextMenuItem[]
+  }>({ isOpen: false, position: { x: 0, y: 0 }, items: [] })
 
   const handleWallpaperChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -94,6 +100,7 @@ const Desktop: React.FC = () => {
         type: 'folder',
         content: item,
         isMinimized: false,
+        isMaximized: false,
       })
     }
   }
@@ -153,10 +160,34 @@ const Desktop: React.FC = () => {
     setActiveWindow(openWindows[openWindows.length - 1]?.id)
   }
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      items: getDesktopMenuItems(),
+    })
+  }
+
+  const handleContextMenuAction = (actionId: string) => {
+    switch (actionId) {
+      case 'new-folder':
+        handleAddFolder({ title: 'New Folder', icon: '' })
+        break
+      case 'new-file':
+        handleAddShortcut({ title: 'New File', url: '', icon: '' })
+        break
+      case 'paste':
+        break
+    }
+    setContextMenu(prev => ({ ...prev, isOpen: false }))
+  }
+
   return (
     <div
       className="os-desktop"
       style={{ backgroundImage: `url(${wallpaper})` }}
+      onContextMenu={handleContextMenu}
     >
       {/* Desktop items */}
       <div className="os-desktop-grid">
@@ -175,10 +206,11 @@ const Desktop: React.FC = () => {
       </div>
 
       {/* Windows */}
-      {openWindows.map((win) => (
+      {openWindows.map((win, index) => (
         <Window
           key={win.id}
           window={win}
+          index={index}
           onClose={closeWindow}
           onMinimize={handleWindowMinimize}
           onMaximize={handleWindowMaximize}
@@ -207,6 +239,7 @@ const Desktop: React.FC = () => {
       {/* Modals */}
       {editItem && (
         <EditModal
+          key={editItem.id}
           item={editItem}
           onClose={() => {
             setEditItem(null)
@@ -233,6 +266,14 @@ const Desktop: React.FC = () => {
           onConfirmDelete={handleConfirmDelete}
         />
       )}
+
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        menuItems={contextMenu.items}
+        onSelect={handleContextMenuAction}
+        onClose={() => setContextMenu(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   )
 }

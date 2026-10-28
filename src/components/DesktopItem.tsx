@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import { FolderItem, ShortcutItem } from '../types/desktop'
-import { MoreVertical, ExternalLink, Edit, Trash2, Settings, Folder, Link } from 'lucide-react'
+import { Folder, Link } from 'lucide-react'
+import { ContextMenu, getItemMenuItems } from './context-menu'
+import type { ContextMenuItem, ContextMenuPosition } from './context-menu'
 
 interface Props {
   item: ShortcutItem | FolderItem
@@ -17,116 +19,69 @@ const DesktopItem: React.FC<Props> = ({
   onDelete,
   onViewProperties,
 }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean
+    position: ContextMenuPosition
+    items: ContextMenuItem[]
+  }>({ isOpen: false, position: { x: 0, y: 0 }, items: [] })
   const isFolder = 'items' in item
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setIsMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
-
-  const handleMenuToggle = (e: React.MouseEvent) => {
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
-    setIsMenuOpen(prev => !prev)
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      items: getItemMenuItems(isFolder),
+    })
   }
 
-  const handleAction = (action: 'open' | 'edit' | 'delete' | 'properties', e: React.MouseEvent) => {
-    e.stopPropagation()
-    setIsMenuOpen(false)
-
-    switch (action) {
+  const handleContextMenuAction = (actionId: string) => {
+    switch (actionId) {
       case 'open':
         onClick()
+        break
+      case 'get-info':
+        onViewProperties?.(item)
         break
       case 'edit':
         onEdit?.(item)
         break
+      case 'cut':
+        break
+      case 'copy':
+        break
       case 'delete':
         onDelete?.(item.id)
         break
-      case 'properties':
-        onViewProperties?.(item)
-        break
     }
+    setContextMenu(prev => ({ ...prev, isOpen: false }))
   }
 
   return (
-    <div className="os-desktop-item" onClick={onClick}>
-      {isMenuOpen && (
-        <button
-          ref={buttonRef}
-          className="os-desktop-item__menu-btn"
-          onClick={handleMenuToggle}
-          aria-label="Opciones"
-        >
-          <MoreVertical className="os-icon os-icon--xs" />
-        </button>
-      )}
+    <>
+      <div className="os-desktop-item" onClick={onClick} onContextMenu={handleContextMenu}>
+        <div className="os-desktop-item__icon">
+          {item.icon ? (
+            <img src={item.icon} alt={item.title} />
+          ) : isFolder ? (
+            <Folder className="os-icon" style={{ width: 40, height: 40 }} />
+          ) : (
+            <Link className="os-icon" style={{ width: 40, height: 40 }} />
+          )}
+        </div>
 
-      <div className="os-desktop-item__icon">
-        {item.icon ? (
-          <img src={item.icon} alt={item.title} />
-        ) : isFolder ? (
-          <Folder className="os-icon" style={{ width: 40, height: 40 }} />
-        ) : (
-          <Link className="os-icon" style={{ width: 40, height: 40 }} />
-        )}
+        <span className="os-desktop-item__label">{item.title}</span>
       </div>
 
-      <span className="os-desktop-item__label">{item.title}</span>
-
-      {isMenuOpen && (
-        <div
-          ref={menuRef}
-          className="os-context-menu os-context-menu--sm"
-          style={{ top: '100%', left: '50%', transform: 'translateX(-50%)' }}
-        >
-          <button
-            className="os-context-menu__item"
-            onClick={(e) => handleAction('open', e)}
-          >
-            <ExternalLink className="os-icon os-icon--sm" />
-            <span>Abrir</span>
-          </button>
-          <button
-            className="os-context-menu__item"
-            onClick={(e) => handleAction('edit', e)}
-          >
-            <Edit className="os-icon os-icon--sm" />
-            <span>Editar</span>
-          </button>
-          <button
-            className="os-context-menu__item"
-            onClick={(e) => handleAction('delete', e)}
-          >
-            <Trash2 className="os-icon os-icon--sm" />
-            <span>Eliminar</span>
-          </button>
-          <button
-            className="os-context-menu__item"
-            onClick={(e) => handleAction('properties', e)}
-          >
-            <Settings className="os-icon os-icon--sm" />
-            <span>Propiedades</span>
-          </button>
-        </div>
-      )}
-    </div>
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        menuItems={contextMenu.items}
+        onSelect={handleContextMenuAction}
+        onClose={() => setContextMenu(prev => ({ ...prev, isOpen: false }))}
+      />
+    </>
   )
 }
 

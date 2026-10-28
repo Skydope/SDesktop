@@ -421,6 +421,24 @@
   margin: 4px 0;
 }
 
+.os-context-menu__item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.os-context-menu__item-label {
+  flex: 1;
+}
+
+.os-context-menu__item-shortcut {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-left: 24px;
+}
+
 /* ── Inputs ─────────────────────────────────────────── */
 
 .os-input {
@@ -1984,13 +2002,13 @@
 }
 
 .os-menubar__button {
+  color: inherit;
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 13px;
   font-weight: 500;
   background: transparent;
   border: none;
-  color: inherit;
   cursor: default;
 }
 
@@ -2191,6 +2209,23 @@
 .os-dock__window--active {
   background: rgba(255, 255, 255, 0.12);
   color: var(--text-primary);
+}
+
+/* El item es el contenedor (hover/estado); el boton de adentro es el area
+   clickeable del titulo. Antes el close era un <button> DENTRO de otro
+   <button>, que es HTML invalido. */
+.os-dock__window-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 .os-dock__window-icon {
@@ -2581,4 +2616,42 @@
   font-size: 11px;
   color: rgba(255, 255, 255, 0.4);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+/* ── Error boundary ──────────────────────────────────── */
+
+.os-error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px;
+  height: 100%;
+  overflow: auto;
+}
+
+.os-error-boundary__title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.os-error-boundary__message {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  max-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.os-boot__error {
+  margin: 8px 0 0;
+  max-width: 44ch;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: center;
 }
